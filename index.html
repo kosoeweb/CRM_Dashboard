@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UTC — YTD Sales Forecast & Customer Journey Analytics</title>
+
+  <!-- Google Fonts: Inter & Noto Sans Myanmar -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans Myanmar', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (XLSX) CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@0.395.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .glass-header {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+    }
+    .kpi-card {
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+    }
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.22s ease-out forwards;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+    .animate-slide-right {
+      animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- ===================================================================== -->
+  <!-- 1. EXECUTIVE HEADER, LOGO CUSTOMIZER & NAVIGATION                     -->
+  <!-- ===================================================================== -->
+  <header class="sticky top-0 z-30 glass-header border-b border-slate-200/80 shadow-xs">
+    <div class="max-w-[1640px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5">
+        
+        <!-- Company Logo Slot + Title -->
+        <div class="flex items-center gap-3.5">
+          <div id="brandLogoContainer" onclick="openLogoModal()" title="Click to upload or set Company Logo"
+               class="group relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-indigo-600 to-slate-900 flex items-center justify-center shadow-md border border-indigo-500/30 overflow-hidden cursor-pointer shrink-0">
+            <img id="brandLogoImg" src="" alt="Company Logo" class="hidden w-full h-full object-contain bg-white p-1" />
+            <div id="defaultLogoSvg" class="flex flex-col items-center justify-center text-white">
+              <svg class="w-7 h-7 text-indigo-200" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="30" height="30" rx="8" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M10 12V20C10 22.7614 12.2386 25 15 25C17.7614 25 20 22.7614 20 20V12" stroke="#34D399" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M23 12H28M25.5 12V24" stroke="white" stroke-width="2.8" stroke-linecap="round"/>
+              </svg>
+              <span class="text-[9px] font-extrabold tracking-widest uppercase text-emerald-300 mt-0.5">UTC</span>
+            </div>
+            <div class="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <i data-lucide="camera" class="w-4 h-4 text-white"></i>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
+                UTC — YTD Sales Forecast & Customer Journey Analytics
+              </h1>
+              <span id="dataSourceBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Sample Raw Dataset (120 Logs • YTD Sale Forecast)</span>
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span data-i18n="subtitle">Longitudinal Customer Status Progression, Multi-Year Pipeline & Revenue Intelligence</span>
+              <span class="hidden sm:inline text-slate-300">•</span>
+              <span class="text-indigo-600 font-semibold" id="activeRecordSummary">0 Customers • 0 Raw Logs</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Header Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Bilingual Toggle -->
+          <button id="langToggleBtn" onclick="toggleLanguage()"
+                  class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+            <i data-lucide="languages" class="w-4 h-4 text-indigo-600"></i>
+            <span id="langToggleLabel">EN / မြန်မာ</span>
+          </button>
+
+          <!-- Set Logo Button -->
+          <button onclick="openLogoModal()"
+                  class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition">
+            <i data-lucide="image-plus" class="w-4 h-4 text-indigo-600"></i>
+            <span data-i18n="btnLogo">Set Logo</span>
+          </button>
+
+          <!-- API & Data Source Button -->
+          <button onclick="openDataModal()"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition">
+            <i data-lucide="webhook" class="w-4 h-4"></i>
+            <span data-i18n="btnSync">API & Data Source</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- View Navigation Tabs + Calculation Basis Switch -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mt-3.5 pt-2.5 border-t border-slate-100">
+        <!-- Navigation Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          <button onclick="setActiveTab('all')" id="tab-all"
+                  class="nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap bg-indigo-600 text-white shadow-2xs">
+            <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+            <span data-i18n="tabAll">Full Dashboard</span>
+          </button>
+          <button onclick="setActiveTab('journey')" id="tab-journey"
+                  class="nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-600 hover:bg-slate-100">
+            <i data-lucide="route" class="w-3.5 h-3.5"></i>
+            <span data-i18n="tabJourney">Customer Journey & Timeline</span>
+          </button>
+          <button onclick="setActiveTab('charts')" id="tab-charts"
+                  class="nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-600 hover:bg-slate-100">
+            <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
+            <span data-i18n="tabCharts">Charts & Funnel</span>
+          </button>
+          <button onclick="setActiveTab('compare')" id="tab-compare"
+                  class="nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-600 hover:bg-slate-100">
+            <i data-lucide="git-compare" class="w-3.5 h-3.5"></i>
+            <span data-i18n="tabCompare">Compare Studio</span>
+          </button>
+          <button onclick="setActiveTab('records')" id="tab-records"
+                  class="nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-600 hover:bg-slate-100">
+            <i data-lucide="table-2" class="w-3.5 h-3.5"></i>
+            <span data-i18n="tabRecords">Raw Activity Logs</span>
+          </button>
+        </div>
+
+        <!-- Calculation Basis Switch (Customer Journey vs Raw Activity Logs) -->
+        <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80 self-start md:self-auto">
+          <span class="text-[11px] font-bold text-slate-500 pl-2 hidden sm:inline" data-i18n="lblBasis">Basis:</span>
+          <button id="basis-customer" onclick="setCalculationBasis('customer')"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-indigo-700 shadow-2xs transition flex items-center gap-1">
+            <i data-lucide="user-check" class="w-3 h-3"></i>
+            <span data-i18n="basisCustomer">Customer Journey (Latest Status)</span>
+          </button>
+          <button id="basis-raw" onclick="setCalculationBasis('raw')"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+            <i data-lucide="layers" class="w-3 h-3"></i>
+            <span data-i18n="basisRaw">Raw Activity Logs (All Touches)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN DASHBOARD BODY                                                   -->
+  <!-- ===================================================================== -->
+  <main class="max-w-[1640px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- =================================================================== -->
+    <!-- 2. MULTI-SELECT GLOBAL FILTER BAR (8 MULTI-SELECTS + DATE + SEARCH) -->
+    <!-- =================================================================== -->
+    <section class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <i data-lucide="filter" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-900" data-i18n="filterTitle">Multi-Select Global Filters (Year, Month, Team, Stage & More)</h2>
+            <p class="text-[11px] text-slate-500" data-i18n="filterSub">Select multiple options per dimension • Updates Customer Journeys, KPIs, Charts & Logs simultaneously</p>
+          </div>
+        </div>
+        <button onclick="resetAllFilters()"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition self-start sm:self-auto">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span data-i18n="resetFilters">Reset All Filters</span>
+        </button>
+      </div>
+
+      <!-- 8 Multi-Select Dropdown Slots + Date Range + Keyword Search -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <!-- Multi-select containers populated dynamically -->
+        <div id="ms-container-year"></div>
+        <div id="ms-container-month"></div>
+        <div id="ms-container-salePerson"></div>
+        <div id="ms-container-region"></div>
+        <div id="ms-container-productGroup"></div>
+        <div id="ms-container-stage"></div>
+        <div id="ms-container-enquiryType"></div>
+        <div id="ms-container-customerType"></div>
+
+        <!-- From Date -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1" data-i18n="lblDateFrom">From Date</label>
+          <input type="date" id="filterDateFrom" onchange="applyFilters()"
+                 class="w-full rounded-xl border border-slate-300 bg-slate-50/70 hover:bg-white focus:bg-white px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-[34px]" />
+        </div>
+
+        <!-- To Date -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1" data-i18n="lblDateTo">To Date</label>
+          <input type="date" id="filterDateTo" onchange="applyFilters()"
+                 class="w-full rounded-xl border border-slate-300 bg-slate-50/70 hover:bg-white focus:bg-white px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-[34px]" />
+        </div>
+
+        <!-- Keyword Search (spans 2 columns on lg) -->
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1" data-i18n="lblSearch">Keyword Search</label>
+          <div class="relative">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="filterKeyword" oninput="applyFilters()" placeholder="Search Customer Name, Order #, Quote #, Discussion notes..."
+                   class="w-full rounded-xl border border-slate-300 bg-slate-50/70 hover:bg-white focus:bg-white pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-[34px]" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Removable Active Filter Pills -->
+      <div id="activeFilterPills" class="hidden flex-wrap items-center gap-1.5 mt-3.5 pt-3 border-t border-slate-100"></div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 3. 6 EXECUTIVE KPI CARDS                                            -->
+    <!-- =================================================================== -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      
+      <!-- KPI 1: Total Pipeline / Quote MMK -->
+      <div class="kpi-card bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500" data-i18n="kpiQuoteTitle">Total Quoted Value</p>
+            <h3 id="kpiQuoteShort" class="text-xl font-extrabold text-slate-900 mt-1">0 M MMK</h3>
+            <p id="kpiQuoteExact" class="text-[11px] text-slate-500 mt-0.5 truncate" title="Exact MMK">0 MMK</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shrink-0">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Quoted Deals: <strong id="kpiQuotedCount" class="text-slate-800">0</strong></span>
+          <span class="text-amber-600 font-semibold">Pipeline</span>
+        </div>
+      </div>
+
+      <!-- KPI 2: Confirmed MMK -->
+      <div class="kpi-card bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500" data-i18n="kpiConfTitle">Confirmed Value</p>
+            <h3 id="kpiConfShort" class="text-xl font-extrabold text-indigo-700 mt-1">0 M MMK</h3>
+            <p id="kpiConfExact" class="text-[11px] text-slate-500 mt-0.5 truncate">0 MMK</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shrink-0">
+            <i data-lucide="badge-check" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Confirmed: <strong id="kpiConfCount" class="text-slate-800">0</strong></span>
+          <span class="text-indigo-600 font-semibold">Committed</span>
+        </div>
+      </div>
+
+      <!-- KPI 3: Order Received MMK -->
+      <div class="kpi-card bg-white rounded-2xl border border-emerald-200/80 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700" data-i18n="kpiOrderTitle">Order Received</p>
+            <h3 id="kpiOrderShort" class="text-xl font-extrabold text-emerald-700 mt-1">0 M MMK</h3>
+            <p id="kpiOrderExact" class="text-[11px] text-slate-600 font-medium mt-0.5 truncate">0 MMK</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0">
+            <i data-lucide="banknote" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Orders Won: <strong id="kpiOrderCount" class="text-emerald-700">0</strong></span>
+          <span class="text-emerald-600 font-semibold">Deduplicated</span>
+        </div>
+      </div>
+
+      <!-- KPI 4: Win / Conversion Rate % -->
+      <div class="kpi-card bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500" data-i18n="kpiWinTitle">Win / Conversion Rate</p>
+            <h3 id="kpiWinRate" class="text-xl font-extrabold text-slate-900 mt-1">0.0%</h3>
+            <p id="kpiWinSub" class="text-[11px] text-slate-500 mt-0.5">Order + Verbally Confirmed</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shrink-0">
+            <i data-lucide="trophy" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Quote→Win: <strong id="kpiQuoteToWin" class="text-purple-700">0%</strong></span>
+          <span>Lost/Denied: <strong id="kpiDeniedCount" class="text-rose-600">0</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 5: Unique Customers vs Raw Touches -->
+      <div class="kpi-card bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500" data-i18n="kpiCustTitle">Unique Customers</p>
+            <h3 id="kpiUniqueCustomers" class="text-xl font-extrabold text-slate-900 mt-1">0</h3>
+            <p class="text-[11px] text-indigo-600 font-semibold mt-0.5"><span id="kpiRawTouches">0</span> Total Raw Touches</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-100 shrink-0">
+            <i data-lucide="users" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>New: <strong id="kpiNewCustPct" class="text-emerald-600">0%</strong></span>
+          <span>Existing: <strong id="kpiExCustPct" class="text-indigo-600">0%</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 6: Average Deal Size MMK -->
+      <div class="kpi-card bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500" data-i18n="kpiAovTitle">Average Deal Size</p>
+            <h3 id="kpiAovShort" class="text-xl font-extrabold text-slate-900 mt-1">0 M MMK</h3>
+            <p id="kpiAovExact" class="text-[11px] text-slate-500 mt-0.5 truncate">0 MMK / Won Order</p>
+          </div>
+          <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shrink-0">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Avg Cycle: <strong id="kpiAvgCycleDays" class="text-slate-800">0d</strong></span>
+          <span>Avg Touches: <strong id="kpiAvgTouchesPerCust" class="text-teal-700">0.0</strong></span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 4. CUSTOMER STATUS PROGRESSION & TIMELINE ANALYTICS SECTION         -->
+    <!-- =================================================================== -->
+    <section id="section-journey" class="bg-white rounded-2xl border border-indigo-200/90 shadow-2xs overflow-hidden">
+      <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 px-5 py-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+            <i data-lucide="route" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold tracking-tight" data-i18n="journeyTitle">Customer Status Progression & Longitudinal Timeline Analytics</h2>
+            <p class="text-xs text-indigo-200/85" data-i18n="journeySub">Tracks each customer across multiple dates, normalizes name spacing/casing, and measures stage velocity & conversion cycle</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-[11px] font-semibold bg-white/10 border border-white/15 text-emerald-300 self-start sm:self-auto">
+          Anti-Double-Count Engine Active
+        </span>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <!-- Customer Journey 6-Card Velocity KPI Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block" data-i18n="jkpi1">Unique Customers</span>
+            <strong id="jKpiUnique" class="text-lg font-extrabold text-slate-900 mt-0.5 block">0</strong>
+            <span class="text-[11px] text-slate-500">Normalized accounts</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block" data-i18n="jkpi2">Multi-Touch Customers</span>
+            <strong id="jKpiMultiTouch" class="text-lg font-extrabold text-indigo-900 mt-0.5 block">0</strong>
+            <span id="jKpiMultiTouchPct" class="text-[11px] text-indigo-600 font-medium">0% with ≥2 logs</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block" data-i18n="jkpi3">Converted Customers</span>
+            <strong id="jKpiConverted" class="text-lg font-extrabold text-emerald-800 mt-0.5 block">0</strong>
+            <span class="text-[11px] text-emerald-600 font-medium">Order / Confirmed</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-700 block" data-i18n="jkpi4">Avg Conversion Cycle</span>
+            <strong id="jKpiCycleDays" class="text-lg font-extrabold text-sky-900 mt-0.5 block">0.0 days</strong>
+            <span class="text-[11px] text-sky-600 font-medium">First contact → Close</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block" data-i18n="jkpi5">Avg Touches to Close</span>
+            <strong id="jKpiTouchesToClose" class="text-lg font-extrabold text-purple-900 mt-0.5 block">0.0</strong>
+            <span class="text-[11px] text-purple-600 font-medium">Logs per won account</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 block" data-i18n="jkpi6">Stalled Leads (&gt;14d)</span>
+            <strong id="jKpiStalled" class="text-lg font-extrabold text-amber-800 mt-0.5 block">0</strong>
+            <span class="text-[11px] text-amber-700 font-medium">Open &amp; inactive &gt;14d</span>
+          </div>
+        </div>
+
+        <!-- Chart: Customer Stage Progression & Velocity + Journey Insights -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div class="lg:col-span-7 bg-slate-50/60 rounded-xl border border-slate-200/80 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800" data-i18n="jChartTitle">Customer Stage Progression &amp; Velocity</h3>
+                <p class="text-[11px] text-slate-500">Unique customers by Current Latest Stage vs. Highest Stage Reached &amp; Avg Days Spent</p>
+              </div>
+            </div>
+            <div class="chart-wrapper h-[260px]">
+              <canvas id="journeyProgressionChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Top Stage Transition Paths & Stalled Alert Summary -->
+          <div class="lg:col-span-5 space-y-3">
+            <div class="p-4 rounded-xl border border-slate-200 bg-white">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5 flex items-center gap-1.5">
+                <i data-lucide="git-branch" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span>Most Common Customer Progression Paths</span>
+              </h4>
+              <div id="topProgressionPaths" class="space-y-2 text-xs"></div>
+            </div>
+
+            <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/50">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2 flex items-center gap-1.5">
+                <i data-lucide="clock-alert" class="w-3.5 h-3.5 text-amber-600"></i>
+                <span>Longest Stalled Open Accounts (Action Needed)</span>
+              </h4>
+              <div id="stalledAccountsPreview" class="space-y-1.5 text-xs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Customer Timeline & Status Change Explorer Table -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800" data-i18n="jTableTitle">Customer Timeline &amp; Status Change Explorer</h3>
+              <p class="text-[11px] text-slate-500">Click any customer row to open their full chronological step-by-step timeline drawer</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="journeyFilterStatus" onchange="renderCustomerJourneyTable()" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                <option value="ALL">All Journeys</option>
+                <option value="MULTI">Multi-Touch Only (≥2 Logs)</option>
+                <option value="CONVERTED">Converted (Order / Confirmed)</option>
+                <option value="STALLED">Stalled Open (&gt;14 Days)</option>
+              </select>
+              <div class="relative">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="journeySearchInput" oninput="renderCustomerJourneyTable()" placeholder="Filter customer..."
+                       class="rounded-lg border border-slate-300 bg-white pl-7 pr-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600 select-none">
+                  <th onclick="sortJourneyTable('displayName')" class="py-2.5 px-3.5 cursor-pointer hover:bg-slate-100">Customer Name ↕</th>
+                  <th onclick="sortJourneyTable('primarySalesperson')" class="py-2.5 px-3 cursor-pointer hover:bg-slate-100">Owner / Rep ↕</th>
+                  <th onclick="sortJourneyTable('region')" class="py-2.5 px-3 cursor-pointer hover:bg-slate-100">Region ↕</th>
+                  <th onclick="sortJourneyTable('latestStage')" class="py-2.5 px-3 cursor-pointer hover:bg-slate-100">Latest Stage ↕</th>
+                  <th class="py-2.5 px-3">Stage Progression Path</th>
+                  <th onclick="sortJourneyTable('touchCount')" class="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100">Touches ↕</th>
+                  <th onclick="sortJourneyTable('statusChanges')" class="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100">Changes ↕</th>
+                  <th onclick="sortJourneyTable('cycleDays')" class="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100">Cycle (Days) ↕</th>
+                  <th onclick="sortJourneyTable('totalOrderMMK')" class="py-2.5 px-3.5 text-right cursor-pointer hover:bg-slate-100">Order MMK ↕</th>
+                </tr>
+              </thead>
+              <tbody id="customerJourneyTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+            </table>
+          </div>
+
+          <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+            <span id="journeyPaginationInfo">Showing 0 customers</span>
+            <div id="journeyPaginationControls" class="flex items-center gap-1"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 5. VISUAL ANALYTICS CHARTS SECTION                                  -->
+    <!-- =================================================================== -->
+    <section id="section-charts" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Combo Chart: Monthly Order & Quote Trend + Activity Volume -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900" data-i18n="chart1Title">Monthly Order &amp; Quote Trend + Activity Volume</h3>
+              <p class="text-xs text-slate-500">Order Revenue &amp; Quoted Value (Million MMK) vs. Monthly Touch/Deal Volume</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-semibold">Chronological Trend</span>
+          </div>
+          <div class="chart-wrapper h-[300px] flex-1">
+            <canvas id="monthlyTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Sales Stage Funnel -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900" data-i18n="chart2Title">Sales Stage Funnel</h3>
+              <p id="funnelSubtitle" class="text-xs text-slate-500">Count &amp; MMK Value across pipeline stages</p>
+            </div>
+            <span id="funnelModeBadge" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Latest Customer Stage</span>
+          </div>
+          <div class="chart-wrapper h-[300px] flex-1">
+            <canvas id="pipelineFunnelChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Regional Breakdown -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900" data-i18n="chart3Title">Regional Revenue &amp; Activity Breakdown</h3>
+              <p class="text-xs text-slate-500">Order Revenue (MMK) and Customer/Deal count by Region</p>
+            </div>
+          </div>
+          <div class="chart-wrapper h-[280px] flex-1">
+            <canvas id="regionalChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Sale Person Performance Leaderboard -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900" data-i18n="chart4Title">Sale Person Performance Leaderboard</h3>
+              <p class="text-xs text-slate-500">Order Revenue (MMK), Quoted Value, Unique Customers &amp; Win Rate</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center flex-1">
+            <div class="md:col-span-6 chart-wrapper h-[250px]">
+              <canvas id="salespersonChart"></canvas>
+            </div>
+            <div class="md:col-span-6 overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <th class="py-2 px-2">Sale Person</th>
+                    <th class="py-2 px-2 text-right">Cust.</th>
+                    <th class="py-2 px-2 text-right">Win %</th>
+                    <th class="py-2 px-2 text-right">Order MMK</th>
+                  </tr>
+                </thead>
+                <tbody id="salespersonLeaderboardBody" class="divide-y divide-slate-100 text-xs"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 6. COMPARE & ANALYTICS STUDIO (YEAR, MONTH, REGION, REP, PRODUCT)   -->
+    <!-- =================================================================== -->
+    <section id="section-compare" class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div class="bg-slate-900 px-5 py-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+            <i data-lucide="git-compare" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold tracking-tight" data-i18n="compareTitle">Compare &amp; Analytics Studio</h2>
+            <p class="text-xs text-slate-300">Side-by-side MMK variance &amp; percentage delta across Years, Months, Regions, Sale Persons &amp; Products</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Dimension:</label>
+          <select id="compareDimension" onchange="onCompareDimensionChange()"
+                  class="rounded-xl bg-white/10 border border-white/20 text-white text-xs font-semibold px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+            <option value="year" class="text-slate-900">Year vs. Year (e.g. 2025 vs 2026)</option>
+            <option value="month" class="text-slate-900">Month vs. Month</option>
+            <option value="region" class="text-slate-900">Region vs. Region</option>
+            <option value="salePerson" class="text-slate-900">Sale Person vs. Sale Person</option>
+            <option value="productGroup" class="text-slate-900">Product vs. Product</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-11 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div class="md:col-span-5">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-1">Cohort A (Baseline)</label>
+            <select id="compareItemA" onchange="renderCompareStudio()"
+                    class="w-full rounded-xl border border-indigo-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900"></select>
+          </div>
+          <div class="md:col-span-1 flex items-center justify-center pt-3 md:pt-4">
+            <span class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-extrabold text-xs flex items-center justify-center">VS</span>
+          </div>
+          <div class="md:col-span-5">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-1">Cohort B (Comparison Target)</label>
+            <select id="compareItemB" onchange="renderCompareStudio()"
+                    class="w-full rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900"></select>
+          </div>
+        </div>
+
+        <div id="compareCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div class="lg:col-span-6 chart-wrapper h-[260px]">
+            <canvas id="compareBarChart"></canvas>
+          </div>
+          <div class="lg:col-span-6 overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                <tr>
+                  <th class="py-2.5 px-3">Metric</th>
+                  <th id="thCompareA" class="py-2.5 px-3 text-right text-indigo-700">Cohort A</th>
+                  <th id="thCompareB" class="py-2.5 px-3 text-right text-emerald-700">Cohort B</th>
+                  <th class="py-2.5 px-3 text-right">Variance (B - A)</th>
+                </tr>
+              </thead>
+              <tbody id="compareTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 7. FULL RAW ACTIVITY LOG TABLE WITH SORTING, PAGINATION & CSV EXPORT -->
+    <!-- =================================================================== -->
+    <section id="section-records" class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div class="p-5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900" data-i18n="tableTitle">Raw Activity Logs (YTD Sale Forecast)</h2>
+          <p class="text-xs text-slate-500">Click any column header to sort • Click any row to inspect full discussion/negotiation notes or customer timeline</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex items-center gap-1.5 text-xs text-slate-600">
+            <span>Rows:</span>
+            <select id="pageSizeSelect" onchange="changePageSize()" class="rounded-lg border border-slate-300 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-800">
+              <option value="15" selected>15</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <button onclick="exportFilteredCSV()"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span data-i18n="btnExport">Export Filtered CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse whitespace-nowrap">
+          <thead>
+            <tr class="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600 select-none">
+              <th onclick="sortRawTable('effectiveDate')" class="py-3 px-3.5 cursor-pointer hover:bg-slate-100">Date ↕</th>
+              <th onclick="sortRawTable('year')" class="py-3 px-2.5 cursor-pointer hover:bg-slate-100">Year ↕</th>
+              <th onclick="sortRawTable('month')" class="py-3 px-2.5 cursor-pointer hover:bg-slate-100">Mo. ↕</th>
+              <th onclick="sortRawTable('salePerson')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Sale Person ↕</th>
+              <th onclick="sortRawTable('productGroup')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Product ↕</th>
+              <th onclick="sortRawTable('customerDisplay')" class="py-3 px-3.5 cursor-pointer hover:bg-slate-100">Customer Name ↕</th>
+              <th onclick="sortRawTable('customerType')" class="py-3 px-2.5 cursor-pointer hover:bg-slate-100">Type ↕</th>
+              <th onclick="sortRawTable('region')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Region ↕</th>
+              <th onclick="sortRawTable('stage')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Stage ↕</th>
+              <th onclick="sortRawTable('quoteAmount')" class="py-3 px-3 text-right cursor-pointer hover:bg-slate-100">Quote MMK ↕</th>
+              <th onclick="sortRawTable('orderNo')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Order No. ↕</th>
+              <th onclick="sortRawTable('orderAmount')" class="py-3 px-3 text-right cursor-pointer hover:bg-slate-100">Order MMK ↕</th>
+              <th onclick="sortRawTable('orderStatus')" class="py-3 px-3 cursor-pointer hover:bg-slate-100">Status ↕</th>
+            </tr>
+          </thead>
+          <tbody id="rawRecordsTableBody" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+        </table>
+      </div>
+
+      <div class="px-5 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
+        <div id="rawPaginationInfo">Showing 0 entries</div>
+        <div class="flex items-center gap-1.5" id="rawPaginationControls"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="max-w-[1640px] mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-xs text-slate-400">
+    UTC — YTD Sales Forecast &amp; Customer Journey Analytics • Exclusively ingests "YTD Sale Forecast" (Summary Sheet Ignored)
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: SET COMPANY LOGO                                             -->
+  <!-- ===================================================================== -->
+  <div id="logoModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="image-plus" class="w-5 h-5 text-indigo-600"></i>
+          <h3 class="text-sm font-bold text-slate-900">Set Company Logo (Logo ထည့်ရန်)</h3>
+        </div>
+        <button onclick="closeLogoModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Option 1: Upload Logo Image (Saved in Browser)</label>
+          <input type="file" accept="image/*" onchange="handleLogoFileUpload(event)"
+                 class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-xl p-1.5 cursor-pointer" />
+        </div>
+        <div class="relative flex py-1 items-center">
+          <div class="grow border-t border-slate-200"></div>
+          <span class="shrink mx-3 text-[11px] font-semibold text-slate-400 uppercase">OR (GitHub Repo Path)</span>
+          <div class="grow border-t border-slate-200"></div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Option 2: Repository Relative Path or URL</label>
+          <div class="flex gap-2">
+            <input type="text" id="logoPathInput" placeholder="./logo.png"
+                   class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button onclick="applyLogoPath()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">Apply</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Commit <code class="bg-slate-100 px-1 rounded">logo.png</code> next to <code class="bg-slate-100 px-1 rounded">index.html</code> and enter <code class="bg-slate-100 px-1 rounded">./logo.png</code>.</p>
+        </div>
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <button onclick="resetLogo()" class="text-xs font-semibold text-rose-600 hover:text-rose-700">Reset Default Emblem</button>
+          <button onclick="closeLogoModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: API & DATA SOURCE (APPS SCRIPT JSON API + XLSX/CSV UPLOAD)   -->
+  <!-- ===================================================================== -->
+  <div id="dataModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="webhook" class="w-5 h-5 text-indigo-600"></i>
+          <h3 class="text-sm font-bold text-slate-900">API &amp; Data Source Configuration</h3>
+        </div>
+        <button onclick="closeDataModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <!-- Apps Script Web App JSON API -->
+        <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-indigo-950">1. Google Apps Script Web App JSON API</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Recommended</span>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Web App URL (https://script.google.com/macros/s/.../exec)</label>
+            <input type="url" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                   class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">API Secret Token (Optional)</label>
+            <input type="text" id="appsScriptTokenInput" placeholder="Leave blank if public read-only Web App"
+                   class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <button id="syncApiBtn" onclick="syncFromAppsScriptAPI()"
+                  class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Sync Live API (YTD Sale Forecast Only)</span>
+          </button>
+          <p class="text-[11px] text-slate-500">
+            Saved in <code class="bg-white px-1 rounded">localStorage</code>. You can also hardcode <code class="bg-white px-1 rounded">DEFAULT_APPS_SCRIPT_URL</code> at the top of <code class="bg-white px-1 rounded">index.html</code> before pushing to GitHub.
+          </p>
+        </div>
+
+        <!-- Local Excel / CSV Upload -->
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800">2. Upload Excel (.xlsx) or CSV File</span>
+            <span class="text-[10px] font-semibold text-slate-500">Ignores "Summary" Tab</span>
+          </div>
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"
+                 class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 border border-slate-200 bg-white rounded-xl p-1.5 cursor-pointer" />
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <button onclick="restoreSampleDataset()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Restore Sample Multi-Year Raw Data</button>
+          <button onclick="closeDataModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- DRAWER / MODAL 3: CHRONOLOGICAL CUSTOMER TIMELINE INSPECTOR           -->
+  <!-- ===================================================================== -->
+  <div id="customerTimelineModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex justify-end">
+    <div class="bg-white w-full max-w-2xl h-full shadow-2xl border-l border-slate-200 flex flex-col animate-slide-right">
+      <!-- Drawer Header -->
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-start justify-between gap-3 shrink-0">
+        <div>
+          <div class="flex flex-wrap items-center gap-2 mb-1">
+            <span id="tlLatestStageBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white">Stage</span>
+            <span id="tlMetaBadge" class="text-[11px] text-slate-300 font-medium">Region • Product</span>
+          </div>
+          <h3 id="tlCustomerTitle" class="text-lg font-extrabold tracking-tight">Customer Name</h3>
+          <p id="tlAliasesSubtitle" class="text-[11px] text-indigo-300 mt-0.5"></p>
+        </div>
+        <button onclick="closeCustomerTimeline()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Summary KPI Strip inside Drawer -->
+      <div id="tlSummaryStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-4 bg-slate-50 border-b border-slate-200 shrink-0"></div>
+
+      <!-- Vertical Chronological Step-by-Step Timeline -->
+      <div id="tlEventsContainer" class="p-6 overflow-y-auto flex-1 space-y-0"></div>
+
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+        <button onclick="closeCustomerTimeline()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold">Close Timeline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: SINGLE RAW RECORD INSPECTOR                                  -->
+  <!-- ===================================================================== -->
+  <div id="rawRecordModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <span id="rawModalStage" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500 text-white mb-1">Stage</span>
+          <h3 id="rawModalCustomer" class="text-base font-bold">Customer Name</h3>
+        </div>
+        <button onclick="closeRawRecordModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="rawModalBody" class="p-5 max-h-[70vh] overflow-y-auto space-y-3 text-xs"></div>
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <button id="rawModalViewJourneyBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5">
+          <i data-lucide="route" class="w-3.5 h-3.5"></i>
+          <span>Open Full Customer Timeline</span>
+        </button>
+        <button onclick="closeRawRecordModal()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT ENGINE                                                     -->
+  <!-- ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 0. CONFIGURATION CONSTANT (PASTE YOUR APPS SCRIPT WEB APP URL HERE)
+    // =========================================================================
+    const DEFAULT_APPS_SCRIPT_URL = "";
+    const DEFAULT_APPS_SCRIPT_TOKEN = "";
+
+    // =========================================================================
+    // 1. BILINGUAL DICTIONARY (ENGLISH / MYANMAR)
+    // =========================================================================
+    let currentLang = 'EN';
+    const I18N = {
+      EN: {
+        subtitle: "Longitudinal Customer Status Progression, Multi-Year Pipeline & Revenue Intelligence",
+        btnLogo: "Set Logo",
+        btnSync: "API & Data Source",
+        tabAll: "Full Dashboard",
+        tabJourney: "Customer Journey & Timeline",
+        tabCharts: "Charts & Funnel",
+        tabCompare: "Compare Studio",
+        tabRecords: "Raw Activity Logs",
+        lblBasis: "Basis:",
+        basisCustomer: "Customer Journey (Latest Status)",
+        basisRaw: "Raw Activity Logs (All Touches)",
+        filterTitle: "Multi-Select Global Filters (Year, Month, Team, Stage & More)",
+        filterSub: "Select multiple options per dimension • Updates Customer Journeys, KPIs, Charts & Logs simultaneously",
+        resetFilters: "Reset All Filters",
+        lblDateFrom: "From Date",
+        lblDateTo: "To Date",
+        lblSearch: "Keyword Search",
+        kpiQuoteTitle: "Total Quoted Value",
+        kpiConfTitle: "Confirmed Value",
+        kpiOrderTitle: "Order Received",
+        kpiWinTitle: "Win / Conversion Rate",
+        kpiCustTitle: "Unique Customers",
+        kpiAovTitle: "Average Deal Size",
+        journeyTitle: "Customer Status Progression & Longitudinal Timeline Analytics",
+        journeySub: "Tracks each customer across multiple dates, normalizes name spacing/casing, and measures stage velocity & conversion cycle",
+        jkpi1: "Unique Customers",
+        jkpi2: "Multi-Touch Customers",
+        jkpi3: "Converted Customers",
+        jkpi4: "Avg Conversion Cycle",
+        jkpi5: "Avg Touches to Close",
+        jkpi6: "Stalled Leads (>14d)",
+        jChartTitle: "Customer Stage Progression & Velocity",
+        jTableTitle: "Customer Timeline & Status Change Explorer",
+        chart1Title: "Monthly Order & Quote Trend + Activity Volume",
+        chart2Title: "Sales Stage Funnel",
+        chart3Title: "Regional Revenue & Activity Breakdown",
+        chart4Title: "Sale Person Performance Leaderboard",
+        compareTitle: "Compare & Analytics Studio",
+        tableTitle: "Raw Activity Logs (YTD Sale Forecast)",
+        btnExport: "Export Filtered CSV"
+      },
+      MM: {
+        subtitle: "Customer တစ်ဦးချင်းစီ၏ နေ့ရက်အလိုက် အခြေအနေပြောင်းလဲမှု၊ Multi-Year Pipeline နှင့် ဝင်ငွေခွဲခြမ်းစိတ်ဖြာမှု",
+        btnLogo: "Logo ထည့်ရန်",
+        btnSync: "API & Data ချိတ်ဆက်ရန်",
+        tabAll: "Dashboard အပြည့်အစုံ",
+        tabJourney: "Customer အဆင့်ပြောင်းလဲမှု Timeline",
+        tabCharts: "ဇယားနှင့် Funnel များ",
+        tabCompare: "နှိုင်းယှဉ်ခွဲခြမ်းစိတ်ဖြာရန်",
+        tabRecords: "Raw Activity မှတ်တမ်းများ",
+        lblBasis: "တွက်ချက်ပုံ:",
+        basisCustomer: "Customer Journey (နောက်ဆုံးအခြေအနေ)",
+        basisRaw: "Raw Activity Logs (အကြိမ်ရေအားလုံး)",
+        filterTitle: "Multi-Select စစ်ထုတ်ရန် (Year, Month, Team, Stage နှင့် အခြား)",
+        filterSub: "တစ်ခုထက်ပို၍ အများအပြား ရွေးချယ်စစ်ထုတ်နိုင်ပြီး Customer Journey နှင့် KPI အားလုံး တစ်ပြိုင်နက် ပြောင်းလဲပါမည်",
+        resetFilters: "Filter အားလုံးပြန်ဖျက်ရန်",
+        lblDateFrom: "စတင်သည့်ရက်",
+        lblDateTo: "ပြီးဆုံးသည့်ရက်",
+        lblSearch: "ရှာဖွေရန် (Search)",
+        kpiQuoteTitle: "Quote တင်ထားသည့်တန်ဖိုး",
+        kpiConfTitle: "အတည်ပြုပြီးတန်ဖိုး (Confirmed)",
+        kpiOrderTitle: "အော်ဒါရရှိငွေ (Order Received)",
+        kpiWinTitle: "အောင်မြင်မှုနှုန်း (Win Rate %)",
+        kpiCustTitle: "Customer အရေအတွက်",
+        kpiAovTitle: "ပျမ်းမျှအော်ဒါတန်ဖိုး (AOV)",
+        journeyTitle: "Customer အလိုက် နေ့ရက်နှင့် Status ပြောင်းလဲမှု ခွဲခြမ်းစိတ်ဖြာခြင်း",
+        journeySub: "နာမည်စာလုံးပေါင်း ကွာဟချက်များကို အလိုအလျောက်ညှိပြီး Customer တစ်ဦးချင်း၏ အဆင့်ဆင့်ပြောင်းလဲမှုနှင့် ကြာမြင့်ရက်ကို တွက်ချက်ပေးသည်",
+        jkpi1: "စုစုပေါင်း Customer",
+        jkpi2: "အကြိမ်ကြိမ်ဆက်သွယ်ရသူ",
+        jkpi3: "အော်ဒါအောင်မြင်သူ",
+        jkpi4: "ပျမ်းမျှကြာမြင့်ရက်",
+        jkpi5: "အော်ဒါရရန် ပျမ်းမျှအကြိမ်",
+        jkpi6: "၁၄ ရက်ကျော် ငြိမ်နေသူများ",
+        jChartTitle: "Customer အဆင့်ပြောင်းလဲမှုနှင့် ကြာမြင့်ချိန်ပြဇယား",
+        jTableTitle: "Customer Timeline နှင့် Status ပြောင်းလဲမှု စာရင်း",
+        chart1Title: "လအလိုက် Order နှင့် Quote တန်ဖိုး ပြောင်းလဲမှုဇယား",
+        chart2Title: "အရောင်း Pipeline အဆင့်ဆင့်ပြဇယား (Funnel)",
+        chart3Title: "တိုင်းဒေသကြီးအလိုက် ရောင်းအားနှင့် လှုပ်ရှားမှု",
+        chart4Title: "အရောင်းဝန်ထမ်းများ၏ စွမ်းဆောင်ရည် အဆင့်သတ်မှတ်ချက်",
+        compareTitle: "နှိုင်းယှဉ်ခွဲခြမ်းစိတ်ဖြာမှု စတူဒီယို (Compare Studio)",
+        tableTitle: "Raw Activity မှတ်တမ်းအသေးစိတ် (YTD Sale Forecast)",
+        btnExport: "CSV ဒေါင်းလုဒ်ဆွဲရန်"
+      }
+    };
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'EN' ? 'MM' : 'EN';
+      document.getElementById('langToggleLabel').textContent = currentLang === 'EN' ? 'EN / မြန်မာ' : 'မြန်မာ / EN';
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[currentLang][key]) el.textContent = I18N[currentLang][key];
+      });
+      showToast(currentLang === 'MM' ? 'မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ' : 'Switched to English labels', 'info');
+    }
+
+    // =========================================================================
+    // 2. CURRENCY, DATE & STAGE UTILITIES
+    // =========================================================================
+    const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const STAGE_RANK = {
+      "Enquiry or Introduction": 1,
+      "Discussion": 2,
+      "Quoted": 3,
+      "Negotiation": 4,
+      "Verbally Confirmed": 5,
+      "Order Received": 6,
+      "Denied": 0,
+      "Lost": 0
+    };
+
+    const STAGE_LIST = [
+      "Enquiry or Introduction",
+      "Discussion",
+      "Quoted",
+      "Negotiation",
+      "Verbally Confirmed",
+      "Order Received"
+    ];
+
+    const STAGE_BADGE_CLASSES = {
+      "Enquiry or Introduction": "bg-slate-100 text-slate-700 border-slate-200",
+      "Discussion": "bg-sky-50 text-sky-700 border-sky-200",
+      "Quoted": "bg-amber-50 text-amber-700 border-amber-200",
+      "Negotiation": "bg-purple-50 text-purple-700 border-purple-200",
+      "Verbally Confirmed": "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "Order Received": "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "Denied": "bg-rose-50 text-rose-700 border-rose-200"
+    };
+
+    function parseMMK(val) {
+      if (val === null || val === undefined || val === '') return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
+      const cleaned = String(val).replace(/\/-/g, '').replace(/[^0-9.-]/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function formatMMK(num) {
+      return Math.round(Number(num) || 0).toLocaleString('en-US') + ' MMK';
+    }
+
+    function formatShortMMK(num) {
+      const val = Number(num) || 0;
+      if (Math.abs(val) >= 1e9) return (val / 1e9).toFixed(2) + ' B MMK';
+      if (Math.abs(val) >= 1e6) return (val / 1e6).toFixed(2) + ' M MMK';
+      if (Math.abs(val) >= 1e3) return (val / 1e3).toFixed(1) + ' K MMK';
+      return Math.round(val).toLocaleString('en-US') + ' MMK';
+    }
+
+    function parseDateSafe(dateVal) {
+      if (!dateVal) return null;
+      if (dateVal instanceof Date && !isNaN(dateVal.getTime())) return dateVal;
+      const str = String(dateVal).trim();
+      if (!str) return null;
+
+      // ISO YYYY-MM-DD or YYYY/MM/DD
+      const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (isoMatch) {
+        return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+      }
+      // DD/MM/YYYY or MM/DD/YYYY
+      const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (dmyMatch) {
+        const a = Number(dmyMatch[1]);
+        const b = Number(dmyMatch[2]);
+        const y = Number(dmyMatch[3]);
+        // If first part > 12, it's definitely DD/MM/YYYY
+        if (a > 12) return new Date(y, b - 1, a);
+        return new Date(y, a - 1, b);
+      }
+      const fallback = new Date(str);
+      return isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    function toISODateString(dateObj) {
+      if (!dateObj || isNaN(dateObj.getTime())) return '';
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function daysBetween(d1, d2) {
+      if (!d1 || !d2) return 0;
+      const ms = Math.abs(d2.getTime() - d1.getTime());
+      return Math.round(ms / (1000 * 60 * 60 * 24));
+    }
+
+    function normalizeCustomerKey(name) {
+      return String(name || 'Unknown Customer')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+    }
+
+    function cleanCustomerDisplay(name) {
+      return String(name || 'Unknown Customer')
+        .trim()
+        .replace(/\s+/g, ' ');
+    }
+
+    // =========================================================================
+    // 3. REALISTIC SAMPLE DATASET (~120 ROWS ACROSS 2025 & 2026 WITH JOURNEYS)
+    // =========================================================================
+    function generateSampleRawDataset() {
+      // Realistic Myanmar B2B battery, UPS, solar & generator accounts with intentional spacing/casing variants
+      const accountBlueprints = [
+        { names: ["Aung Aung Battery ", "Aung Aung battery ", "Aung Aung Battery"], region: "Yangon", product: "Battery", type: "Existing", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Quoted", "Negotiation", "Order Received"], baseAmt: 14924900, year: 2026, startMonth: 2 },
+        { names: ["U Kyaw ( ပြည်စံသူ)", "U Kyaw (ပြည်စံသူ) "], region: "Ayeyarwady", product: "Battery", type: "Existing", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Discussion", "Quoted", "Verbally Confirmed", "Order Received"], baseAmt: 22450000, year: 2026, startMonth: 1 },
+        { names: ["Top Trading -Mdy", "Top Trading - Mdy ", "top trading -mdy"], region: "Mandalay", product: "Solar Inverter", type: "New", sp: "Key Account", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 38600000, year: 2026, startMonth: 3 },
+        { names: ["DKSH Company", "DKSH Company "], region: "Yangon", product: "UPS", type: "Existing", sp: "Key Account", stages: ["Discussion", "Quoted", "Negotiation", "Verbally Confirmed", "Order Received"], baseAmt: 46800000, year: 2026, startMonth: 1 },
+        { names: ["Arr Pyae Battery Shop", "Arr Pyae battery shop "], region: "Bago", product: "Battery", type: "Existing", sp: "Aung Ko", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 9850000, year: 2026, startMonth: 4 },
+        { names: ["Shwe Taung Engineering Co., Ltd", "Shwe Taung Engineering"], region: "Yangon", product: "UPS", type: "Existing", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Discussion", "Quoted", "Order Received"], baseAmt: 31200000, year: 2025, startMonth: 9 },
+        { names: ["Pathein Cold Storage Hub", "Pathein Cold Storage Hub "], region: "Ayeyarwady", product: "Battery", type: "New", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Quoted", "Negotiation", "Order Received"], baseAmt: 18750000, year: 2025, startMonth: 10 },
+        { names: ["Mandalay Solar Grid Co.", "mandalay solar grid co."], region: "Mandalay", product: "Solar Inverter", type: "New", sp: "Su Mon", stages: ["Enquiry or Introduction", "Discussion", "Quoted", "Verbally Confirmed"], baseAmt: 27400000, year: 2026, startMonth: 5 },
+        { names: ["KBZ Data Center Operations"], region: "Yangon", product: "UPS", type: "Existing", sp: "Key Account", stages: ["Discussion", "Quoted", "Negotiation", "Order Received"], baseAmt: 64500000, year: 2025, startMonth: 11 },
+        { names: ["Magway Oil Field Services", "Magway Oil Field Services "], region: "Magway", product: "Generator", type: "Existing", sp: "Aung Ko", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 41000000, year: 2026, startMonth: 2 },
+        { names: ["Myeik Marine Cold Chain"], region: "Tanintharyi", product: "Battery", type: "New", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Discussion", "Quoted"], baseAmt: 16200000, year: 2026, startMonth: 6 },
+        { names: ["Monywa Copper Mine Power", "Monywa Copper Mine Power "], region: "Sagaing", product: "Battery", type: "Existing", sp: "Kyaw Thu Win", stages: ["Quoted", "Negotiation", "Order Received"], baseAmt: 52300000, year: 2025, startMonth: 8 },
+        { names: ["Hinthada Agro Mill"], region: "Ayeyarwady", product: "Solar Inverter", type: "New", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 13400000, year: 2026, startMonth: 4 },
+        { names: ["Mawlamyine Port Logistics", "mawlamyine port logistics"], region: "Mon", product: "UPS", type: "Existing", sp: "Su Mon", stages: ["Enquiry or Introduction", "Discussion", "Quoted", "Negotiation"], baseAmt: 19800000, year: 2026, startMonth: 5 },
+        { names: ["Pyay Regional Hospital"], region: "Bago", product: "UPS", type: "New", sp: "Aung Ko", stages: ["Enquiry or Introduction", "Quoted", "Verbally Confirmed", "Order Received"], baseAmt: 24900000, year: 2025, startMonth: 12 },
+        { names: ["Yoma Bank Branch Network", "Yoma Bank Branch Network "], region: "Yangon", product: "Battery", type: "Existing", sp: "Key Account", stages: ["Discussion", "Quoted", "Order Received"], baseAmt: 35600000, year: 2026, startMonth: 3 },
+        { names: ["Thilawa Electronics Plant"], region: "Yangon", product: "UPS", type: "Existing", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Quoted", "Negotiation", "Order Received"], baseAmt: 48900000, year: 2026, startMonth: 6 },
+        { names: ["Bogale Fishery Warehouse", "Bogale Fishery Warehouse "], region: "Ayeyarwady", product: "Battery", type: "Existing", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 11200000, year: 2025, startMonth: 7 },
+        { names: ["Taunggyi Highland Resort"], region: "Mandalay", product: "Solar Inverter", type: "New", sp: "Su Mon", stages: ["Enquiry or Introduction", "Discussion"], baseAmt: 15500000, year: 2026, startMonth: 7 },
+        { names: ["Pakokku Textile Factory"], region: "Magway", product: "Generator", type: "Existing", sp: "Aung Ko", stages: ["Quoted", "Order Received"], baseAmt: 29700000, year: 2025, startMonth: 10 },
+        { names: ["Myitkyina Telecom Relay"], region: "Kachin", product: "Battery", type: "New", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Quoted", "Verbally Confirmed"], baseAmt: 21400000, year: 2026, startMonth: 7 },
+        { names: ["Nyaungdon River Logistics"], region: "Ayeyarwady", product: "Battery", type: "New", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 12800000, year: 2026, startMonth: 5 },
+        { names: ["Hlaing Tharyar Garment Cluster"], region: "Yangon", product: "Generator", type: "Existing", sp: "Kyaw Thu Win", stages: ["Discussion", "Quoted", "Negotiation", "Order Received"], baseAmt: 33900000, year: 2025, startMonth: 11 },
+        { names: ["Thaton Rubber Processing"], region: "Mon", product: "Battery", type: "New", sp: "Su Mon", stages: ["Enquiry or Introduction", "Quoted"], baseAmt: 14100000, year: 2026, startMonth: 8 },
+        { names: ["Dawei SEZ Infrastructure"], region: "Tanintharyi", product: "Solar Inverter", type: "New", sp: "Key Account", stages: ["Enquiry or Introduction", "Discussion", "Quoted", "Verbally Confirmed", "Order Received"], baseAmt: 55000000, year: 2026, startMonth: 2 },
+        { names: ["Meiktila Aviation Support"], region: "Mandalay", product: "UPS", type: "Existing", sp: "Aung Ko", stages: ["Quoted", "Negotiation", "Order Received"], baseAmt: 26300000, year: 2025, startMonth: 9 },
+        { names: ["Sagaing Bridge Telecom Tower"], region: "Sagaing", product: "Battery", type: "Existing", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 17600000, year: 2026, startMonth: 4 },
+        { names: ["Kyaikto Resort Power Backup"], region: "Mon", product: "Solar Inverter", type: "New", sp: "Su Mon", stages: ["Enquiry or Introduction", "Discussion", "Quoted"], baseAmt: 19200000, year: 2026, startMonth: 8 },
+        { names: ["Hpa-An Cement Plant Aux"], region: "Mon", product: "Battery", type: "Existing", sp: "Aung Ko", stages: ["Discussion", "Quoted", "Order Received"], baseAmt: 28400000, year: 2025, startMonth: 12 },
+        { names: ["Ayeyarwady Delta Telecom"], region: "Ayeyarwady", product: "Battery", type: "Existing", sp: "Tun Lin Aung", stages: ["Enquiry or Introduction", "Quoted", "Negotiation", "Verbally Confirmed", "Order Received"], baseAmt: 31800000, year: 2026, startMonth: 6 },
+        { names: ["Golden Myanmar Logistics"], region: "Yangon", product: "UPS", type: "Existing", sp: "Key Account", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 23700000, year: 2026, startMonth: 8 },
+        { names: ["Pyin Oo Lwin Cold Chain"], region: "Mandalay", product: "Battery", type: "New", sp: "Su Mon", stages: ["Enquiry or Introduction", "Quoted", "Negotiation"], baseAmt: 16900000, year: 2026, startMonth: 9 },
+        { names: ["Myaungmya Rice Mill Power"], region: "Ayeyarwady", product: "Generator", type: "Existing", sp: "Tun Lin Aung", stages: ["Quoted", "Order Received"], baseAmt: 34200000, year: 2026, startMonth: 9 },
+        { names: ["Tamwe Commercial Complex"], region: "Yangon", product: "UPS", type: "New", sp: "Kyaw Thu Win", stages: ["Enquiry or Introduction", "Discussion", "Quoted"], baseAmt: 21500000, year: 2026, startMonth: 10 },
+        { names: ["Chauk Oilfield Pump Station"], region: "Magway", product: "Battery", type: "Existing", sp: "Aung Ko", stages: ["Enquiry or Introduction", "Quoted", "Order Received"], baseAmt: 18400000, year: 2026, startMonth: 10 }
+      ];
+
+      const enquiryChannels = ["Sales Visit", "Call In or Walk In", "Referral", "Tender", "Others"];
+      const discussionSamples = [
+        "Initial technical load survey completed; client requested 48V deep-cycle VRLA battery bank proposal.",
+        "Reviewed technical specs, cycle life curve, and 24-month UTC replacement warranty.",
+        "Compared AGM vs. Lithium backup options for regional tower and cold storage uptime.",
+        "Confirmed delivery lead time and installation support requirements with procurement team.",
+        "Site engineer approved technical compliance; proceeding to commercial quotation."
+      ];
+      const negotiationSamples = [
+        "Customer requested 2.5% volume discount and delivery to regional warehouse.",
+        "Agreed on phased delivery schedule and 30-day credit terms after commissioning.",
+        "Matched competitor unit pricing while maintaining genuine UTC warranty coverage.",
+        "Final PO approved by Finance Director; awaiting formal order number issuance."
+      ];
+
+      const rows = [];
+      let qCounter = 2101;
+      let oCounter = 840;
+
+      accountBlueprints.forEach((bp, idx) => {
+        const quoteNo = `UTC-QT-${String(bp.year).slice(2)}-${qCounter++}`;
+        const orderNo = bp.stages.includes("Order Received") ? `UTC-PO-${String(bp.year).slice(2)}-${oCounter++}` : "";
+        let currentDate = new Date(bp.year, bp.startMonth - 1, 3 + (idx % 12));
+
+        bp.stages.forEach((stage, sIdx) => {
+          if (sIdx > 0) {
+            // Advance 5 to 16 days between status updates
+            currentDate = new Date(currentDate.getTime() + (5 + ((idx + sIdx * 3) % 12)) * 86400000);
+          }
+          const isoDate = toISODateString(currentDate);
+          const monthNum = currentDate.getMonth() + 1;
+          const yrNum = currentDate.getFullYear();
+
+          // Pick realistic name variant (tests whitespace/casing normalization)
+          const rawCustomerName = bp.names[sIdx % bp.names.length];
+          const hasQuote = STAGE_RANK[stage] >= 3;
+          const hasConfirmed = STAGE_RANK[stage] >= 5;
+          const hasOrder = stage === "Order Received";
+
+          const quoteAmt = hasQuote ? bp.baseAmt : 0;
+          const confAmt = hasConfirmed ? Math.round(bp.baseAmt * 0.98) : 0;
+          const orderAmt = hasOrder ? confAmt : 0;
+
+          rows.push({
+            timestamp: `${isoDate} 10:${String(15 + (sIdx * 7) % 40).padStart(2, '0')}:00`,
+            month: monthNum,
+            year: yrNum,
+            salePerson: bp.sp,
+            productGroup: bp.product,
+            date: isoDate,
+            enquiryType: enquiryChannels[(idx + sIdx) % enquiryChannels.length],
+            customerName: rawCustomerName,
+            customerType: bp.type,
+            region: bp.region,
+            stage: stage,
+            quoteNo: hasQuote ? quoteNo : "",
+            quoteDate: hasQuote ? isoDate : "",
+            quoteAmount: hasQuote ? `${quoteAmt.toLocaleString('en-US')}/-` : "",
+            discussionPoints: discussionSamples[(idx + sIdx) % discussionSamples.length],
+            negotiationPoints: STAGE_RANK[stage] >= 4 ? negotiationSamples[(idx + sIdx) % negotiationSamples.length] : "",
+            orderDate: hasOrder ? isoDate : "",
+            orderNo: orderNo,
+            orderAmount: hasOrder ? `${orderAmt.toLocaleString('en-US')}/-` : "",
+            orderStatus: hasOrder ? (yrNum === 2025 || monthNum < 9 ? "Delivered" : "Processing") : (hasConfirmed ? "Awaiting PO" : "Open Pipeline"),
+            reason: hasOrder ? "Immediate stock & trusted technical service" : "",
+            confirmedDate: hasConfirmed ? isoDate : "",
+            confirmedAmount: hasConfirmed ? `${confAmt.toLocaleString('en-US')}/-` : "",
+            reasonOfDenied: ""
+          });
+        });
+      });
+
+      return rows;
+    }
+
+    // =========================================================================
+    // 4. APPLICATION STATE
+    // =========================================================================
+    let rawRecords = [];          // All normalized raw logs from "YTD Sale Forecast"
+    let filteredRawRecords = [];  // Raw logs matching active multi-select filters
+    let customerJourneys = [];    // Aggregated longitudinal journeys per unique customer
+    let calculationBasis = 'customer'; // 'customer' | 'raw'
+
+    // Multi-Select Filter State (Empty Set = ALL selected)
+    const multiSelectState = {
+      year: new Set(),
+      month: new Set(),
+      salePerson: new Set(),
+      region: new Set(),
+      productGroup: new Set(),
+      stage: new Set(),
+      enquiryType: new Set(),
+      customerType: new Set()
+    };
+
+    const MULTI_SELECT_CONFIG = [
+      { key: 'year', label: 'Year', placeholder: 'All Years' },
+      { key: 'month', label: 'Month', placeholder: 'All Months', formatter: m => `M${m} (${MONTH_NAMES[Number(m)] || m})` },
+      { key: 'salePerson', label: 'Sale Person', placeholder: 'All Team' },
+      { key: 'region', label: 'Region', placeholder: 'All Regions' },
+      { key: 'productGroup', label: 'Product Group', placeholder: 'All Products' },
+      { key: 'stage', label: 'Pipeline Stage', placeholder: 'All Stages' },
+      { key: 'enquiryType', label: 'Enquiry Type', placeholder: 'All Channels' },
+      { key: 'customerType', label: 'Customer Type', placeholder: 'All Types' }
+    ];
+
+    // Table Sorting & Pagination State
+    let rawSort = { key: 'effectiveDate', dir: 'desc' };
+    let rawPage = 1;
+    let pageSize = 15;
+
+    let journeySort = { key: 'latestDateMs', dir: 'desc' };
+    let journeyPage = 1;
+    const journeyPageSize = 10;
+
+    // Chart.js Instances
+    let charts = {
+      journey: null,
+      monthly: null,
+      funnel: null,
+      regional: null,
+      salesperson: null,
+      compare: null
+    };
+
+    // =========================================================================
+    // 5. NORMALIZATION ENGINE (INGESTS RAW ROWS, EXTRACTS YEAR & CLEAN KEYS)
+    // =========================================================================
+    function normalizeRawRows(inputRows) {
+      return inputRows.map((row, index) => {
+        const pick = (keys) => {
+          for (const k of keys) {
+            if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+          }
+          const rowKeys = Object.keys(row);
+          for (const rk of rowKeys) {
+            const norm = rk.trim().toLowerCase();
+            for (const k of keys) {
+              if (norm === k.toLowerCase()) return row[rk];
+            }
+          }
+          return '';
+        };
+
+        const rawCust = String(pick(['Customer Name', 'customerName', 'Customer']) || 'Unknown Customer');
+        const custKey = normalizeCustomerKey(rawCust);
+        const custDisplay = cleanCustomerDisplay(rawCust);
+
+        const dateStr = String(pick(['Date', 'date']) || '').trim();
+        const tsStr = String(pick(['Timestamp', 'timestamp']) || '').trim();
+        const qDateStr = String(pick(['Quote Date', 'quoteDate']) || '').trim();
+        const oDateStr = String(pick(['Order Date', 'orderDate']) || '').trim();
+        const cDateStr = String(pick(['Confirmed Date', 'confirmedDate']) || '').trim();
+
+        const effectiveDateObj = parseDateSafe(dateStr) || parseDateSafe(tsStr) || parseDateSafe(oDateStr) || parseDateSafe(cDateStr) || parseDateSafe(qDateStr) || new Date(2026, 0, 1);
+        const effectiveDateISO = toISODateString(effectiveDateObj);
+
+        let yr = parseInt(String(pick(['Year', 'year'])).replace(/[^0-9]/g, ''), 10);
+        if (isNaN(yr) || yr < 2000) yr = effectiveDateObj.getFullYear();
+
+        let mo = parseInt(String(pick(['Month', 'month'])).replace(/[^0-9]/g, ''), 10);
+        if (isNaN(mo) || mo < 1 || mo > 12) mo = effectiveDateObj.getMonth() + 1;
+
+        const qAmt = parseMMK(pick(['Quote Amount in MMK', 'quoteAmount', 'Quote Amount']));
+        const oAmt = parseMMK(pick(['Order Amount', 'orderAmount', 'Order Amount in MMK']));
+        const cAmt = parseMMK(pick(['Confirmed Amount', 'confirmedAmount', 'Confirmed Amount in MMK']));
+
+        let stage = String(pick(['Stage', 'stage']) || '').trim();
+        if (!stage) stage = oAmt > 0 ? 'Order Received' : 'Enquiry or Introduction';
+
+        return {
+          _id: index + 1,
+          timestamp: tsStr,
+          year: yr,
+          month: mo,
+          salePerson: String(pick(['Sale Person', 'salePerson', 'Sales Person']) || 'Unassigned').trim(),
+          productGroup: String(pick(['Sub Group [Products]', 'productGroup', 'Sub Group', 'Product']) || 'Battery').trim(),
+          date: dateStr || effectiveDateISO,
+          effectiveDate: effectiveDateISO,
+          effectiveDateObj: effectiveDateObj,
+          effectiveDateMs: effectiveDateObj.getTime(),
+          enquiryType: String(pick(['Enquiry Type', 'enquiryType']) || 'Others').trim(),
+          customerRaw: rawCust,
+          customerKey: custKey,
+          customerDisplay: custDisplay,
+          customerType: String(pick(['Customer Type', 'customerType']) || 'Existing').trim(),
+          region: String(pick(['Region', 'region']) || 'Yangon').trim(),
+          stage: stage,
+          quoteNo: String(pick(['Quote No.', 'quoteNo', 'Quote No']) || '').trim(),
+          quoteDate: qDateStr,
+          quoteAmount: qAmt,
+          discussionPoints: String(pick(['Key Points of Discussion', 'discussionPoints']) || '').trim(),
+          negotiationPoints: String(pick(['Key Points of Negotiation', 'negotiationPoints']) || '').trim(),
+          orderDate: oDateStr,
+          orderNo: String(pick(['Order No.', 'orderNo', 'Order No']) || '').trim(),
+          orderAmount: oAmt,
+          orderStatus: String(pick(['Order Status', 'orderStatus']) || (oAmt > 0 ? 'Delivered' : 'Open Pipeline')).trim(),
+          reason: String(pick(['Reason', 'reason']) || '').trim(),
+          confirmedDate: cDateStr,
+          confirmedAmount: cAmt,
+          reasonOfDenied: String(pick(['Reason of Denied', 'reasonOfDenied']) || '').trim()
+        };
+      }).filter(r => r.customerDisplay !== 'Unknown Customer' || r.quoteAmount > 0 || r.orderAmount > 0);
+    }
+
+    // =========================================================================
+    // 6. LONGITUDINAL CUSTOMER JOURNEY ENGINE
+    // =========================================================================
+    function buildCustomerJourneys(records) {
+      const grouped = new Map();
+
+      records.forEach(rec => {
+        if (!grouped.has(rec.customerKey)) {
+          grouped.set(rec.customerKey, []);
+        }
+        grouped.get(rec.customerKey).push(rec);
+      });
+
+      const journeys = [];
+      const referenceToday = records.reduce((maxD, r) => (r.effectiveDateObj > maxD ? r.effectiveDateObj : maxD), new Date(2026, 0, 1));
+
+      grouped.forEach((events, key) => {
+        // Sort chronologically by effectiveDateMs, then stage rank, then row id
+        events.sort((a, b) => {
+          if (a.effectiveDateMs !== b.effectiveDateMs) return a.effectiveDateMs - b.effectiveDateMs;
+          const rA = STAGE_RANK[a.stage] ?? 1;
+          const rB = STAGE_RANK[b.stage] ?? 1;
+          if (rA !== rB) return rA - rB;
+          return a._id - b._id;
+        });
+
+        // Pick cleanest display name (prefer Title/Mixed case over all-lowercase)
+        const aliases = [...new Set(events.map(e => e.customerRaw.trim()).filter(Boolean))];
+        const displayName = aliases.sort((a, b) => {
+          const upperA = (a.match(/[A-Z]/g) || []).length;
+          const upperB = (b.match(/[A-Z]/g) || []).length;
+          return upperB - upperA;
+        })[0] || events[0].customerDisplay;
+
+        const firstEvent = events[0];
+        const latestEvent = events[events.length - 1];
+
+        // Deduplicated stage progression sequence (consecutive identical stages collapsed)
+        const stageSequence = [];
+        let statusChanges = 0;
+        events.forEach((ev, idx) => {
+          if (idx === 0 || ev.stage !== events[idx - 1].stage) {
+            stageSequence.push(ev.stage);
+            if (idx > 0) statusChanges++;
+          }
+        });
+
+        // Highest stage reached
+        let highestStage = firstEvent.stage;
+        let highestRank = STAGE_RANK[highestStage] ?? 0;
+        events.forEach(ev => {
+          const rk = STAGE_RANK[ev.stage] ?? 0;
+          if (rk > highestRank) {
+            highestRank = rk;
+            highestStage = ev.stage;
+          }
+        });
+
+        // Conversion check & Days to Convert
+        const firstCloseEvent = events.find(ev =>
+          ev.stage === 'Order Received' || ev.stage === 'Verbally Confirmed' || ev.orderAmount > 0
+        );
+        const isConverted = Boolean(firstCloseEvent);
+        const cycleDays = isConverted
+          ? daysBetween(firstEvent.effectiveDateObj, firstCloseEvent.effectiveDateObj)
+          : daysBetween(firstEvent.effectiveDateObj, referenceToday);
+
+        // Stalled days (if not converted and not denied)
+        const isClosedLost = latestEvent.stage === 'Denied' || latestEvent.stage === 'Lost' || latestEvent.reasonOfDenied !== '';
+        const stalledDays = (!isConverted && !isClosedLost)
+          ? daysBetween(latestEvent.effectiveDateObj, referenceToday)
+          : 0;
+
+        // Deduplicate Order Amounts by Order No. (or take max if no Order No.)
+        const orderMap = new Map();
+        let fallbackMaxOrder = 0;
+        events.forEach(ev => {
+          if (ev.orderAmount > 0) {
+            if (ev.orderNo) {
+              orderMap.set(ev.orderNo, Math.max(orderMap.get(ev.orderNo) || 0, ev.orderAmount));
+            } else {
+              fallbackMaxOrder = Math.max(fallbackMaxOrder, ev.orderAmount);
+            }
+          }
+        });
+        const totalOrderMMK = orderMap.size > 0
+          ? [...orderMap.values()].reduce((a, b) => a + b, 0)
+          : fallbackMaxOrder;
+
+        // Deduplicate Quote Amounts by Quote No.
+        const quoteMap = new Map();
+        let fallbackMaxQuote = 0;
+        events.forEach(ev => {
+          if (ev.quoteAmount > 0) {
+            if (ev.quoteNo) {
+              quoteMap.set(ev.quoteNo, Math.max(quoteMap.get(ev.quoteNo) || 0, ev.quoteAmount));
+            } else {
+              fallbackMaxQuote = Math.max(fallbackMaxQuote, ev.quoteAmount);
+            }
+          }
+        });
+        const totalQuotedMMK = quoteMap.size > 0
+          ? [...quoteMap.values()].reduce((a, b) => a + b, 0)
+          : fallbackMaxQuote;
+
+        // Confirmed amount (max across journey or deduplicated)
+        const totalConfirmedMMK = events.reduce((maxC, ev) => Math.max(maxC, ev.confirmedAmount), 0);
+
+        journeys.push({
+          customerKey: key,
+          displayName,
+          aliases,
+          events,
+          touchCount: events.length,
+          statusChanges,
+          firstDate: firstEvent.effectiveDate,
+          latestDate: latestEvent.effectiveDate,
+          latestDateMs: latestEvent.effectiveDateMs,
+          initialStage: firstEvent.stage,
+          latestStage: latestEvent.stage,
+          highestStage,
+          stageSequence,
+          stagePathStr: stageSequence.join(' → '),
+          isConverted,
+          isClosedLost,
+          cycleDays,
+          stalledDays,
+          totalQuotedMMK,
+          totalConfirmedMMK,
+          totalOrderMMK,
+          primarySalesperson: latestEvent.salePerson,
+          region: latestEvent.region,
+          productGroup: latestEvent.productGroup,
+          customerType: latestEvent.customerType,
+          enquiryType: firstEvent.enquiryType,
+          year: latestEvent.year,
+          month: latestEvent.month
+        });
+      });
+
+      return journeys;
+    }
+
+    // =========================================================================
+    // 7. REUSABLE MULTI-SELECT DROPDOWN COMPONENT (WITH SEARCH + SELECT ALL)
+    // =========================================================================
+    function renderMultiSelectDropdowns() {
+      MULTI_SELECT_CONFIG.forEach(cfg => {
+        const container = document.getElementById(`ms-container-${cfg.key}`);
+        if (!container) return;
+
+        // Gather unique sorted options from rawRecords
+        let values = [...new Set(rawRecords.map(r => String(r[cfg.key])))].filter(v => v !== '' && v !== 'undefined');
+        if (cfg.key === 'year' || cfg.key === 'month') {
+          values.sort((a, b) => Number(a) - Number(b));
+        } else {
+          values.sort((a, b) => a.localeCompare(b));
+        }
+
+        const selectedSet = multiSelectState[cfg.key];
+        const count = selectedSet.size;
+        const btnText = count === 0
+          ? cfg.placeholder
+          : count === 1
+            ? (cfg.formatter ? cfg.formatter([...selectedSet][0]) : [...selectedSet][0])
+            : `${count} Selected`;
+
+        const pillHtml = count > 0
+          ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white">${count}</span>`
+          : '';
+
+        container.innerHTML = `
+          <div class="relative" id="ms-wrapper-${cfg.key}">
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">${cfg.label}</label>
+            <button type="button" onclick="toggleMultiSelectMenu('${cfg.key}')"
+                    class="w-full h-[34px] rounded-xl border ${count > 0 ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-300 bg-slate-50/70'} hover:bg-white px-3 text-xs font-semibold text-slate-800 flex items-center justify-between gap-1.5 transition">
+              <span class="truncate">${btnText}</span>
+              <div class="flex items-center gap-1 shrink-0">
+                ${pillHtml}
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
+              </div>
+            </button>
+
+            <!-- Dropdown Panel -->
+            <div id="ms-menu-${cfg.key}" class="hidden absolute left-0 mt-1.5 w-64 bg-white rounded-xl border border-slate-200 shadow-xl z-40 p-2.5 space-y-2 animate-fade-in">
+              <div class="relative">
+                <i data-lucide="search" class="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" placeholder="Filter ${cfg.label}..." oninput="filterMultiSelectOptions('${cfg.key}', this.value)"
+                       class="w-full rounded-lg border border-slate-200 bg-slate-50 pl-7 pr-2 py-1 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+              </div>
+
+              <div class="flex items-center justify-between text-[11px] font-semibold px-1">
+                <button type="button" onclick="selectAllMultiSelect('${cfg.key}')" class="text-indigo-600 hover:text-indigo-800">Select All</button>
+                <button type="button" onclick="clearMultiSelect('${cfg.key}')" class="text-rose-600 hover:text-rose-800">Clear</button>
+              </div>
+
+              <div id="ms-options-${cfg.key}" class="max-h-48 overflow-y-auto divide-y divide-slate-50 border-t border-slate-100 pt-1">
+                ${values.map(val => {
+                  const display = cfg.formatter ? cfg.formatter(val) : val;
+                  const checked = selectedSet.has(val) ? 'checked' : '';
+                  return `
+                    <label data-option-label="${display.toLowerCase()}" class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs text-slate-700">
+                      <input type="checkbox" value="${val}" ${checked} onchange="toggleMultiSelectOption('${cfg.key}', '${val.replace(/'/g, "\\'")}')"
+                             class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span class="truncate">${display}</span>
+                    </label>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      lucide.createIcons();
+    }
+
+    function toggleMultiSelectMenu(key) {
+      const targetMenu = document.getElementById(`ms-menu-${key}`);
+      const isHidden = targetMenu.classList.contains('hidden');
+      // Close all menus first
+      MULTI_SELECT_CONFIG.forEach(c => {
+        const m = document.getElementById(`ms-menu-${c.key}`);
+        if (m) m.classList.add('hidden');
+      });
+      if (isHidden) targetMenu.classList.remove('hidden');
+    }
+
+    // Close multi-select dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      MULTI_SELECT_CONFIG.forEach(c => {
+        const wrapper = document.getElementById(`ms-wrapper-${c.key}`);
+        const menu = document.getElementById(`ms-menu-${c.key}`);
+        if (wrapper && menu && !wrapper.contains(e.target)) {
+          menu.classList.add('hidden');
+        }
+      });
+    });
+
+    function filterMultiSelectOptions(key, query) {
+      const q = query.trim().toLowerCase();
+      const container = document.getElementById(`ms-options-${key}`);
+      if (!container) return;
+      container.querySelectorAll('label[data-option-label]').forEach(lbl => {
+        const text = lbl.getAttribute('data-option-label');
+        lbl.style.display = text.includes(q) ? 'flex' : 'none';
+      });
+    }
+
+    function toggleMultiSelectOption(key, val) {
+      const set = multiSelectState[key];
+      if (set.has(val)) set.delete(val);
+      else set.add(val);
+      renderMultiSelectDropdowns();
+      // Keep menu open for rapid multi-selection
+      const menu = document.getElementById(`ms-menu-${key}`);
+      if (menu) menu.classList.remove('hidden');
+      applyFilters();
+    }
+
+    function selectAllMultiSelect(key) {
+      const values = [...new Set(rawRecords.map(r => String(r[key])))].filter(Boolean);
+      multiSelectState[key] = new Set(values);
+      renderMultiSelectDropdowns();
+      const menu = document.getElementById(`ms-menu-${key}`);
+      if (menu) menu.classList.remove('hidden');
+      applyFilters();
+    }
+
+    function clearMultiSelect(key) {
+      multiSelectState[key].clear();
+      renderMultiSelectDropdowns();
+      applyFilters();
+    }
+
+    // =========================================================================
+    // 8. FILTERING & CALCULATION BASIS ENGINE
+    // =========================================================================
+    function setCalculationBasis(basis) {
+      calculationBasis = basis;
+      document.getElementById('basis-customer').className = basis === 'customer'
+        ? 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-indigo-700 shadow-2xs transition flex items-center gap-1'
+        : 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1';
+      document.getElementById('basis-raw').className = basis === 'raw'
+        ? 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-indigo-700 shadow-2xs transition flex items-center gap-1'
+        : 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1';
+      updateDashboard();
+    }
+
+    function applyFilters() {
+      const dFrom = document.getElementById('filterDateFrom').value;
+      const dTo = document.getElementById('filterDateTo').value;
+      const kw = document.getElementById('filterKeyword').value.trim().toLowerCase();
+
+      const fromObj = dFrom ? new Date(dFrom + 'T00:00:00') : null;
+      const toObj = dTo ? new Date(dTo + 'T23:59:59') : null;
+
+      filteredRawRecords = rawRecords.filter(r => {
+        for (const cfg of MULTI_SELECT_CONFIG) {
+          const set = multiSelectState[cfg.key];
+          if (set.size > 0 && !set.has(String(r[cfg.key]))) return false;
+        }
+        if (fromObj && r.effectiveDateObj < fromObj) return false;
+        if (toObj && r.effectiveDateObj > toObj) return false;
+
+        if (kw) {
+          const hay = `${r.customerDisplay} ${r.orderNo} ${r.quoteNo} ${r.salePerson} ${r.region} ${r.discussionPoints} ${r.negotiationPoints}`.toLowerCase();
+          if (!hay.includes(kw)) return false;
+        }
+        return true;
+      });
+
+      customerJourneys = buildCustomerJourneys(filteredRawRecords);
+      rawPage = 1;
+      journeyPage = 1;
+
+      renderActiveFilterPills();
+      updateDashboard();
+    }
+
+    function resetAllFilters() {
+      MULTI_SELECT_CONFIG.forEach(c => multiSelectState[c.key].clear());
+      document.getElementById('filterDateFrom').value = '';
+      document.getElementById('filterDateTo').value = '';
+      document.getElementById('filterKeyword').value = '';
+      renderMultiSelectDropdowns();
+      applyFilters();
+      showToast('All multi-select filters cleared', 'info');
+    }
+
+    function renderActiveFilterPills() {
+      const container = document.getElementById('activeFilterPills');
+      const pills = [];
+
+      MULTI_SELECT_CONFIG.forEach(cfg => {
+        multiSelectState[cfg.key].forEach(val => {
+          const label = cfg.formatter ? cfg.formatter(val) : val;
+          pills.push({
+            text: `${cfg.label}: ${label}`,
+            action: `removeMultiSelectPill('${cfg.key}', '${val.replace(/'/g, "\\'")}')`
+          });
+        });
+      });
+
+      const dFrom = document.getElementById('filterDateFrom').value;
+      const dTo = document.getElementById('filterDateTo').value;
+      const kw = document.getElementById('filterKeyword').value.trim();
+      if (dFrom) pills.push({ text: `From: ${dFrom}`, action: `clearInputFilter('filterDateFrom')` });
+      if (dTo) pills.push({ text: `To: ${dTo}`, action: `clearInputFilter('filterDateTo')` });
+      if (kw) pills.push({ text: `Search: "${kw}"`, action: `clearInputFilter('filterKeyword')` });
+
+      if (pills.length === 0) {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+        container.innerHTML = '';
+        return;
+      }
+
+      container.classList.remove('hidden');
+      container.classList.add('flex');
+      container.innerHTML = `<span class="text-[11px] font-bold text-slate-400 mr-1">Active Filters:</span>` +
+        pills.map(p => `
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            ${p.text}
+            <button onclick="${p.action}" class="hover:text-rose-600 font-bold ml-0.5">×</button>
+          </span>
+        `).join('');
+    }
+
+    function removeMultiSelectPill(key, val) {
+      multiSelectState[key].delete(val);
+      renderMultiSelectDropdowns();
+      applyFilters();
+    }
+
+    function clearInputFilter(id) {
+      document.getElementById(id).value = '';
+      applyFilters();
+    }
+
+    // =========================================================================
+    // 9. MASTER DASHBOARD RENDERER
+    // =========================================================================
+    function updateDashboard() {
+      document.getElementById('activeRecordSummary').textContent =
+        `${customerJourneys.length} Unique Customers • ${filteredRawRecords.length} of ${rawRecords.length} Raw Logs`;
+
+      renderExecutiveKPIs();
+      renderCustomerJourneySection();
+      renderAnalyticsCharts();
+      onCompareDimensionChange(true);
+      renderRawRecordsTable();
+    }
+
+    // --- 9A. 6 Executive KPI Cards (Adapts cleanly to Calculation Basis) ---
+    function renderExecutiveKPIs() {
+      const totalUniqueCust = customerJourneys.length;
+      const totalRawTouches = filteredRawRecords.length;
+
+      let totalQuote = 0, totalConf = 0, totalOrder = 0;
+      let quotedCnt = 0, confCnt = 0, orderCnt = 0, wonOrConfCnt = 0, deniedCnt = 0;
+
+      if (calculationBasis === 'customer') {
+        totalQuote = customerJourneys.reduce((s, j) => s + j.totalQuotedMMK, 0);
+        totalConf = customerJourneys.reduce((s, j) => s + j.totalConfirmedMMK, 0);
+        totalOrder = customerJourneys.reduce((s, j) => s + j.totalOrderMMK, 0);
+
+        quotedCnt = customerJourneys.filter(j => j.totalQuotedMMK > 0).length;
+        confCnt = customerJourneys.filter(j => j.totalConfirmedMMK > 0).length;
+        orderCnt = customerJourneys.filter(j => j.totalOrderMMK > 0 || j.latestStage === 'Order Received').length;
+        wonOrConfCnt = customerJourneys.filter(j => j.isConverted).length;
+        deniedCnt = customerJourneys.filter(j => j.isClosedLost).length;
+      } else {
+        totalQuote = filteredRawRecords.reduce((s, r) => s + r.quoteAmount, 0);
+        totalConf = filteredRawRecords.reduce((s, r) => s + r.confirmedAmount, 0);
+        totalOrder = filteredRawRecords.reduce((s, r) => s + r.orderAmount, 0);
+
+        quotedCnt = filteredRawRecords.filter(r => r.quoteAmount > 0).length;
+        confCnt = filteredRawRecords.filter(r => r.confirmedAmount > 0).length;
+        orderCnt = filteredRawRecords.filter(r => r.orderAmount > 0 || r.stage === 'Order Received').length;
+        wonOrConfCnt = filteredRawRecords.filter(r => r.stage === 'Order Received' || r.stage === 'Verbally Confirmed' || r.orderAmount > 0).length;
+        deniedCnt = filteredRawRecords.filter(r => r.stage === 'Denied' || r.reasonOfDenied !== '').length;
+      }
+
+      const denom = calculationBasis === 'customer' ? totalUniqueCust : totalRawTouches;
+      const winRate = denom > 0 ? (wonOrConfCnt / denom) * 100 : 0;
+      const quoteToWin = quotedCnt > 0 ? (wonOrConfCnt / quotedCnt) * 100 : 0;
+      const aov = orderCnt > 0 ? totalOrder / orderCnt : 0;
+
+      const newCustCount = customerJourneys.filter(j => j.customerType.toLowerCase() === 'new').length;
+      const newPct = totalUniqueCust > 0 ? Math.round((newCustCount / totalUniqueCust) * 100) : 0;
+      const exPct = totalUniqueCust > 0 ? (100 - newPct) : 0;
+
+      const convertedJourneys = customerJourneys.filter(j => j.isConverted);
+      const avgCycle = convertedJourneys.length > 0
+        ? (convertedJourneys.reduce((s, j) => s + j.cycleDays, 0) / convertedJourneys.length).toFixed(1)
+        : '0.0';
+      const avgTouches = totalUniqueCust > 0 ? (totalRawTouches / totalUniqueCust).toFixed(1) : '0.0';
+
+      document.getElementById('kpiQuoteShort').textContent = formatShortMMK(totalQuote);
+      document.getElementById('kpiQuoteExact').textContent = formatMMK(totalQuote);
+      document.getElementById('kpiQuotedCount').textContent = quotedCnt;
+
+      document.getElementById('kpiConfShort').textContent = formatShortMMK(totalConf);
+      document.getElementById('kpiConfExact').textContent = formatMMK(totalConf);
+      document.getElementById('kpiConfCount').textContent = confCnt;
+
+      document.getElementById('kpiOrderShort').textContent = formatShortMMK(totalOrder);
+      document.getElementById('kpiOrderExact').textContent = formatMMK(totalOrder);
+      document.getElementById('kpiOrderCount').textContent = orderCnt;
+
+      document.getElementById('kpiWinRate').textContent = winRate.toFixed(1) + '%';
+      document.getElementById('kpiWinSub').textContent = calculationBasis === 'customer'
+        ? `${wonOrConfCnt} of ${totalUniqueCust} unique customers`
+        : `${wonOrConfCnt} of ${totalRawTouches} logged touches`;
+      document.getElementById('kpiQuoteToWin').textContent = quoteToWin.toFixed(1) + '%';
+      document.getElementById('kpiDeniedCount').textContent = deniedCnt;
+
+      document.getElementById('kpiUniqueCustomers').textContent = totalUniqueCust;
+      document.getElementById('kpiRawTouches').textContent = totalRawTouches;
+      document.getElementById('kpiNewCustPct').textContent = newPct + '%';
+      document.getElementById('kpiExCustPct').textContent = exPct + '%';
+
+      document.getElementById('kpiAovShort').textContent = formatShortMMK(aov);
+      document.getElementById('kpiAovExact').textContent = formatMMK(aov);
+      document.getElementById('kpiAvgCycleDays').textContent = avgCycle + 'd';
+      document.getElementById('kpiAvgTouchesPerCust').textContent = avgTouches;
+    }
+
+    // --- 9B. Customer Status Progression & Timeline Analytics Section ---
+    function renderCustomerJourneySection() {
+      const total = customerJourneys.length;
+      const multiTouch = customerJourneys.filter(j => j.touchCount >= 2);
+      const converted = customerJourneys.filter(j => j.isConverted);
+      const stalled = customerJourneys.filter(j => j.stalledDays > 14);
+
+      const avgCycle = converted.length > 0
+        ? (converted.reduce((s, j) => s + j.cycleDays, 0) / converted.length).toFixed(1)
+        : '0.0';
+      const avgTouchesClose = converted.length > 0
+        ? (converted.reduce((s, j) => s + j.touchCount, 0) / converted.length).toFixed(1)
+        : '0.0';
+
+      document.getElementById('jKpiUnique').textContent = total;
+      document.getElementById('jKpiMultiTouch').textContent = multiTouch.length;
+      document.getElementById('jKpiMultiTouchPct').textContent = `${total > 0 ? Math.round((multiTouch.length / total) * 100) : 0}% with ≥2 logs`;
+      document.getElementById('jKpiConverted').textContent = converted.length;
+      document.getElementById('jKpiCycleDays').textContent = `${avgCycle} days`;
+      document.getElementById('jKpiTouchesToClose').textContent = avgTouchesClose;
+      document.getElementById('jKpiStalled').textContent = stalled.length;
+
+      // Chart: Customer Stage Progression & Velocity
+      const ctx = document.getElementById('journeyProgressionChart').getContext('2d');
+      const latestCounts = STAGE_LIST.map(st => customerJourneys.filter(j => j.latestStage === st).length);
+      const reachedCounts = STAGE_LIST.map(st => customerJourneys.filter(j => j.events.some(e => e.stage === st)).length);
+
+      if (charts.journey) charts.journey.destroy();
+      charts.journey = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: STAGE_LIST,
+          datasets: [
+            {
+              label: 'Customers Ever Reached Stage',
+              data: reachedCounts,
+              backgroundColor: 'rgba(148, 163, 184, 0.45)',
+              borderRadius: 5
+            },
+            {
+              label: 'Customers Currently at Stage (Latest)',
+              data: latestCounts,
+              backgroundColor: '#4f46e5',
+              borderRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
+          },
+          scales: {
+            y: { grid: { color: '#e2e8f0' }, ticks: { stepSize: 2, font: { size: 10 } } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+
+      // Top Progression Paths
+      const pathCounts = {};
+      customerJourneys.forEach(j => {
+        pathCounts[j.stagePathStr] = (pathCounts[j.stagePathStr] || 0) + 1;
+      });
+      const topPaths = Object.entries(pathCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      document.getElementById('topProgressionPaths').innerHTML = topPaths.map(([path, cnt]) => `
+        <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+          <span class="font-medium text-slate-700 truncate" title="${path}">${path}</span>
+          <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 shrink-0">${cnt} cust.</span>
+        </div>
+      `).join('') || '<span class="text-slate-400">No journey paths available</span>';
+
+      // Stalled Accounts Preview
+      const topStalled = [...stalled].sort((a, b) => b.stalledDays - a.stalledDays).slice(0, 3);
+      document.getElementById('stalledAccountsPreview').innerHTML = topStalled.map(j => `
+        <div onclick="openCustomerTimeline('${j.customerKey.replace(/'/g, "\\'")}')" class="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-amber-200/80 hover:bg-amber-100/50 cursor-pointer transition">
+          <div class="truncate">
+            <strong class="text-slate-900">${j.displayName}</strong>
+            <span class="text-[11px] text-slate-500 block">${j.latestStage} • ${j.primarySalesperson}</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 shrink-0">${j.stalledDays}d idle</span>
+        </div>
+      `).join('') || '<span class="text-emerald-700 font-medium">No open accounts stalled over 14 days.</span>';
+
+      renderCustomerJourneyTable();
+    }
+
+    function sortJourneyTable(key) {
+      if (journeySort.key === key) {
+        journeySort.dir = journeySort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        journeySort.key = key;
+        journeySort.dir = (key === 'touchCount' || key === 'statusChanges' || key === 'cycleDays' || key === 'totalOrderMMK' || key === 'latestDateMs') ? 'desc' : 'asc';
+      }
+      renderCustomerJourneyTable();
+    }
+
+    function renderCustomerJourneyTable() {
+      const modeFilter = document.getElementById('journeyFilterStatus').value;
+      const searchQ = document.getElementById('journeySearchInput').value.trim().toLowerCase();
+
+      let list = customerJourneys.filter(j => {
+        if (modeFilter === 'MULTI' && j.touchCount < 2) return false;
+        if (modeFilter === 'CONVERTED' && !j.isConverted) return false;
+        if (modeFilter === 'STALLED' && j.stalledDays <= 14) return false;
+        if (searchQ && !j.displayName.toLowerCase().includes(searchQ) && !j.primarySalesperson.toLowerCase().includes(searchQ)) return false;
+        return true;
+      });
+
+      list.sort((a, b) => {
+        const k = journeySort.key;
+        const vA = a[k];
+        const vB = b[k];
+        if (typeof vA === 'number' && typeof vB === 'number') {
+          return journeySort.dir === 'asc' ? vA - vB : vB - vA;
+        }
+        return journeySort.dir === 'asc'
+          ? String(vA || '').localeCompare(String(vB || ''))
+          : String(vB || '').localeCompare(String(vA || ''));
+      });
+
+      const total = list.length;
+      const totalPages = Math.max(1, Math.ceil(total / journeyPageSize));
+      if (journeyPage > totalPages) journeyPage = totalPages;
+      const start = (journeyPage - 1) * journeyPageSize;
+      const pageItems = list.slice(start, start + journeyPageSize);
+
+      const tbody = document.getElementById('customerJourneyTableBody');
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400">No customer journeys match the selected criteria.</td></tr>`;
+      } else {
+        tbody.innerHTML = pageItems.map(j => {
+          const badgeCls = STAGE_BADGE_CLASSES[j.latestStage] || 'bg-slate-100 text-slate-700 border-slate-200';
+          return `
+            <tr onclick="openCustomerTimeline('${j.customerKey.replace(/'/g, "\\'")}')" class="hover:bg-indigo-50/50 cursor-pointer transition">
+              <td class="py-2.5 px-3.5 font-bold text-slate-900">
+                <div class="flex items-center gap-1.5">
+                  <span>${j.displayName}</span>
+                  ${j.aliases.length > 1 ? `<span title="Merged ${j.aliases.length} name spelling variants" class="px-1.5 py-0.2 rounded bg-slate-100 text-[10px] font-semibold text-slate-500">${j.aliases.length} variants</span>` : ''}
+                </div>
+              </td>
+              <td class="py-2.5 px-3 text-slate-700 font-medium">${j.primarySalesperson}</td>
+              <td class="py-2.5 px-3 text-slate-600">${j.region}</td>
+              <td class="py-2.5 px-3">
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeCls}">${j.latestStage}</span>
+              </td>
+              <td class="py-2.5 px-3 max-w-[260px] truncate text-[11px] font-medium text-slate-600" title="${j.stagePathStr}">${j.stagePathStr}</td>
+              <td class="py-2.5 px-3 text-right font-bold text-indigo-700">${j.touchCount}</td>
+              <td class="py-2.5 px-3 text-right font-semibold text-slate-700">${j.statusChanges}</td>
+              <td class="py-2.5 px-3 text-right text-slate-600">${j.cycleDays}d</td>
+              <td class="py-2.5 px-3.5 text-right font-mono font-bold ${j.totalOrderMMK > 0 ? 'text-emerald-700' : 'text-slate-400'}">
+                ${j.totalOrderMMK > 0 ? Math.round(j.totalOrderMMK).toLocaleString('en-US') : '—'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('journeyPaginationInfo').textContent = total === 0
+        ? 'Showing 0 customers'
+        : `Showing ${start + 1}–${Math.min(start + journeyPageSize, total)} of ${total} unique customers`;
+
+      const ctrl = document.getElementById('journeyPaginationControls');
+      ctrl.innerHTML = `
+        <button onclick="journeyPage = Math.max(1, journeyPage - 1); renderCustomerJourneyTable()" ${journeyPage === 1 ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 font-semibold">Prev</button>
+        <span class="px-2 font-semibold">Page ${journeyPage} / ${totalPages}</span>
+        <button onclick="journeyPage = Math.min(${totalPages}, journeyPage + 1); renderCustomerJourneyTable()" ${journeyPage === totalPages ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 font-semibold">Next</button>
+      `;
+    }
+
+    // --- 9C. Chronological Customer Timeline Drawer ---
+    function openCustomerTimeline(customerKey) {
+      const journey = customerJourneys.find(j => j.customerKey === customerKey);
+      if (!journey) return;
+
+      document.getElementById('tlLatestStageBadge').textContent = `Latest: ${journey.latestStage}`;
+      document.getElementById('tlMetaBadge').textContent = `${journey.region} • ${journey.productGroup} • ${journey.customerType}`;
+      document.getElementById('tlCustomerTitle').textContent = journey.displayName;
+      document.getElementById('tlAliasesSubtitle').textContent = journey.aliases.length > 1
+        ? `Normalized from raw log variants: ${journey.aliases.map(a => `"${a}"`).join(', ')}`
+        : `First Contact: ${journey.firstDate} • Latest Update: ${journey.latestDate}`;
+
+      document.getElementById('tlSummaryStrip').innerHTML = `
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Touches</span>
+          <strong class="text-sm font-extrabold text-indigo-700">${journey.touchCount} Logs (${journey.statusChanges} changes)</strong>
+        </div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-400 block">Cycle Duration</span>
+          <strong class="text-sm font-extrabold text-slate-900">${journey.cycleDays} Days</strong>
+        </div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Quoted</span>
+          <strong class="text-sm font-extrabold text-amber-700">${formatShortMMK(journey.totalQuotedMMK)}</strong>
+        </div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-400 block">Order Received</span>
+          <strong class="text-sm font-extrabold text-emerald-700">${formatShortMMK(journey.totalOrderMMK)}</strong>
+        </div>
+      `;
+
+      // Render vertical chronological steps with +Xd day gaps
+      const stepsHtml = journey.events.map((ev, idx) => {
+        const prev = idx > 0 ? journey.events[idx - 1] : null;
+        const gapDays = prev ? daysBetween(prev.effectiveDateObj, ev.effectiveDateObj) : 0;
+        const stageChanged = prev && prev.stage !== ev.stage;
+        const badgeCls = STAGE_BADGE_CLASSES[ev.stage] || 'bg-slate-100 text-slate-700 border-slate-200';
+
+        return `
+          <div class="relative pl-7 pb-6 ${idx === journey.events.length - 1 ? 'pb-1' : 'border-l-2 border-indigo-200'} ml-2.5">
+            <!-- Timeline Node Dot -->
+            <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-xs ${ev.stage === 'Order Received' ? 'bg-emerald-500' : 'bg-indigo-600'}"></span>
+
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-extrabold text-slate-900">${ev.effectiveDate}</span>
+                  ${idx > 0 ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">+${gapDays}d later</span>` : `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-50 text-sky-700">Initial Touch</span>`}
+                  ${stageChanged ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700">Stage Upgraded</span>` : ''}
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badgeCls}">${ev.stage}</span>
+              </div>
+
+              <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                <span>Rep: <strong class="text-slate-700">${ev.salePerson}</strong></span>
+                <span>Channel: <strong class="text-slate-700">${ev.enquiryType}</strong></span>
+                ${ev.quoteNo ? `<span>Quote: <strong class="text-amber-700">${ev.quoteNo} (${formatShortMMK(ev.quoteAmount)})</strong></span>` : ''}
+                ${ev.orderNo ? `<span>Order: <strong class="text-emerald-700">${ev.orderNo} (${formatShortMMK(ev.orderAmount)})</strong></span>` : ''}
+              </div>
+
+              ${ev.discussionPoints ? `
+                <div class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <span class="text-[10px] font-bold uppercase text-slate-400 block">Discussion:</span>
+                  ${ev.discussionPoints}
+                </div>` : ''}
+
+              ${ev.negotiationPoints ? `
+                <div class="text-xs text-slate-700 bg-amber-50/40 p-2.5 rounded-lg border border-amber-100">
+                  <span class="text-[10px] font-bold uppercase text-amber-700 block">Negotiation:</span>
+                  ${ev.negotiationPoints}
+                </div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('tlEventsContainer').innerHTML = stepsHtml;
+      document.getElementById('customerTimelineModal').classList.remove('hidden');
+    }
+
+    function closeCustomerTimeline() {
+      document.getElementById('customerTimelineModal').classList.add('hidden');
+    }
+
+    // --- 9D. Standard Analytics Charts ---
+    function renderAnalyticsCharts() {
+      renderMonthlyComboChart();
+      renderStageFunnelChart();
+      renderRegionalChart();
+      renderSalespersonLeaderboard();
+    }
+
+    function renderMonthlyComboChart() {
+      const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+      // Group chronologically by YYYY-MM
+      const ymSet = [...new Set(filteredRawRecords.map(r => `${r.year}-${String(r.month).padStart(2, '0')}`))].sort();
+      const labels = ymSet.map(ym => {
+        const [y, m] = ym.split('-');
+        return `${MONTH_NAMES[Number(m)]} '${y.slice(2)}`;
+      });
+
+      const orderM = ymSet.map(ym => {
+        const [y, m] = ym.split('-').map(Number);
+        if (calculationBasis === 'customer') {
+          return customerJourneys.filter(j => j.year === y && j.month === m).reduce((s, j) => s + j.totalOrderMMK, 0) / 1e6;
+        }
+        return filteredRawRecords.filter(r => r.year === y && r.month === m).reduce((s, r) => s + r.orderAmount, 0) / 1e6;
+      });
+
+      const quoteM = ymSet.map(ym => {
+        const [y, m] = ym.split('-').map(Number);
+        if (calculationBasis === 'customer') {
+          return customerJourneys.filter(j => j.year === y && j.month === m).reduce((s, j) => s + j.totalQuotedMMK, 0) / 1e6;
+        }
+        return filteredRawRecords.filter(r => r.year === y && r.month === m).reduce((s, r) => s + r.quoteAmount, 0) / 1e6;
+      });
+
+      const activityCount = ymSet.map(ym => {
+        const [y, m] = ym.split('-').map(Number);
+        return filteredRawRecords.filter(r => r.year === y && r.month === m).length;
+      });
+
+      if (charts.monthly) charts.monthly.destroy();
+      charts.monthly = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Order Received (M MMK)',
+              data: orderM,
+              backgroundColor: '#10b981',
+              borderRadius: 5,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Quoted Value (M MMK)',
+              data: quoteM,
+              backgroundColor: 'rgba(99, 102, 241, 0.35)',
+              borderRadius: 5,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Activity Touches',
+              data: activityCount,
+              type: 'line',
+              borderColor: '#f59e0b',
+              backgroundColor: '#f59e0b',
+              borderWidth: 2.5,
+              tension: 0.3,
+              pointRadius: 3.5,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
+          },
+          scales: {
+            y: { position: 'left', title: { display: true, text: 'Million MMK', font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+            y1: { position: 'right', title: { display: true, text: 'Touches', font: { size: 10 } }, grid: { drawOnChartArea: false } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderStageFunnelChart() {
+      const ctx = document.getElementById('pipelineFunnelChart').getContext('2d');
+      document.getElementById('funnelModeBadge').textContent = calculationBasis === 'customer'
+        ? 'Latest Customer Stage'
+        : 'All Raw Log Stages';
+
+      const counts = STAGE_LIST.map(st => {
+        return calculationBasis === 'customer'
+          ? customerJourneys.filter(j => j.latestStage === st).length
+          : filteredRawRecords.filter(r => r.stage === st).length;
+      });
+
+      const valuesM = STAGE_LIST.map(st => {
+        if (calculationBasis === 'customer') {
+          return customerJourneys.filter(j => j.latestStage === st).reduce((s, j) => s + (j.totalOrderMMK || j.totalConfirmedMMK || j.totalQuotedMMK), 0) / 1e6;
+        }
+        return filteredRawRecords.filter(r => r.stage === st).reduce((s, r) => s + (r.orderAmount || r.confirmedAmount || r.quoteAmount), 0) / 1e6;
+      });
+
+      if (charts.funnel) charts.funnel.destroy();
+      charts.funnel = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: STAGE_LIST,
+          datasets: [{
+            label: calculationBasis === 'customer' ? 'Unique Customers' : 'Raw Log Entries',
+            data: counts,
+            backgroundColor: ['#94a3b8', '#38bdf8', '#fbbf24', '#a855f7', '#6366f1', '#10b981'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterLabel: (c) => ` Stage Value: ${valuesM[c.dataIndex].toFixed(2)} M MMK`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: '#f1f5f9' } },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function renderRegionalChart() {
+      const ctx = document.getElementById('regionalChart').getContext('2d');
+      const map = {};
+      if (calculationBasis === 'customer') {
+        customerJourneys.forEach(j => {
+          map[j.region] = (map[j.region] || 0) + j.totalOrderMMK;
+        });
+      } else {
+        filteredRawRecords.forEach(r => {
+          map[r.region] = (map[r.region] || 0) + r.orderAmount;
+        });
+      }
+      const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+
+      if (charts.regional) charts.regional.destroy();
+      charts.regional = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(s => s[0]),
+          datasets: [{
+            label: 'Order Revenue (M MMK)',
+            data: sorted.map(s => +(s[1] / 1e6).toFixed(2)),
+            backgroundColor: '#4f46e5',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderSalespersonLeaderboard() {
+      const spMap = {};
+      if (calculationBasis === 'customer') {
+        customerJourneys.forEach(j => {
+          const sp = j.primarySalesperson;
+          if (!spMap[sp]) spMap[sp] = { name: sp, count: 0, won: 0, rev: 0, quote: 0 };
+          spMap[sp].count += 1;
+          if (j.isConverted) spMap[sp].won += 1;
+          spMap[sp].rev += j.totalOrderMMK;
+          spMap[sp].quote += j.totalQuotedMMK;
+        });
+      } else {
+        filteredRawRecords.forEach(r => {
+          const sp = r.salePerson;
+          if (!spMap[sp]) spMap[sp] = { name: sp, count: 0, won: 0, rev: 0, quote: 0 };
+          spMap[sp].count += 1;
+          if (r.stage === 'Order Received' || r.stage === 'Verbally Confirmed' || r.orderAmount > 0) spMap[sp].won += 1;
+          spMap[sp].rev += r.orderAmount;
+          spMap[sp].quote += r.quoteAmount;
+        });
+      }
+
+      const ranked = Object.values(spMap).sort((a, b) => b.rev - a.rev);
+
+      const ctx = document.getElementById('salespersonChart').getContext('2d');
+      if (charts.salesperson) charts.salesperson.destroy();
+      charts.salesperson = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ranked.map(s => s.name),
+          datasets: [
+            { label: 'Order MMK (M)', data: ranked.map(s => +(s.rev / 1e6).toFixed(2)), backgroundColor: '#10b981', borderRadius: 4 },
+            { label: 'Quote MMK (M)', data: ranked.map(s => +(s.quote / 1e6).toFixed(2)), backgroundColor: '#cbd5e1', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 8, font: { size: 10 } } } },
+          scales: {
+            y: { grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+
+      document.getElementById('salespersonLeaderboardBody').innerHTML = ranked.map((s, idx) => {
+        const winPct = s.count > 0 ? ((s.won / s.count) * 100).toFixed(0) : '0';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-2 font-bold text-slate-900">#${idx + 1} ${s.name}</td>
+            <td class="py-2 px-2 text-right text-slate-600">${s.count}</td>
+            <td class="py-2 px-2 text-right font-semibold text-indigo-600">${winPct}%</td>
+            <td class="py-2 px-2 text-right font-bold text-emerald-700">${formatShortMMK(s.rev)}</td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="4" class="py-4 text-center text-slate-400">No data</td></tr>`;
+    }
+
+    // =========================================================================
+    // 10. COMPARE & ANALYTICS STUDIO (YEAR, MONTH, REGION, REP, PRODUCT)
+    // =========================================================================
+    function onCompareDimensionChange(preserve = false) {
+      const dim = document.getElementById('compareDimension').value;
+      const selA = document.getElementById('compareItemA');
+      const selB = document.getElementById('compareItemB');
+      const prevA = selA.value;
+      const prevB = selB.value;
+
+      let items = [...new Set(rawRecords.map(r => String(r[dim])))].filter(Boolean);
+      if (dim === 'year' || dim === 'month') items.sort((a, b) => Number(a) - Number(b));
+      else items.sort((a, b) => a.localeCompare(b));
+
+      const fmt = (v) => dim === 'month' ? `Month ${v} (${MONTH_NAMES[Number(v)] || v})` : v;
+      selA.innerHTML = items.map(v => `<option value="${v}">${fmt(v)}</option>`).join('');
+      selB.innerHTML = items.map(v => `<option value="${v}">${fmt(v)}</option>`).join('');
+
+      if (preserve && items.includes(prevA) && items.includes(prevB)) {
+        selA.value = prevA;
+        selB.value = prevB;
+      } else if (items.length >= 2) {
+        selA.value = items[items.length - 2];
+        selB.value = items[items.length - 1];
+      }
+      renderCompareStudio();
+    }
+
+    function getCohortStats(dim, val) {
+      const rows = rawRecords.filter(r => String(r[dim]) === val);
+      const journeys = buildCustomerJourneys(rows);
+      const rev = journeys.reduce((s, j) => s + j.totalOrderMMK, 0);
+      const quote = journeys.reduce((s, j) => s + j.totalQuotedMMK, 0);
+      const custCount = journeys.length;
+      const wonCust = journeys.filter(j => j.isConverted).length;
+      const winRate = custCount > 0 ? (wonCust / custCount) * 100 : 0;
+      const aov = wonCust > 0 ? rev / wonCust : 0;
+      return { rev, quote, custCount, touches: rows.length, wonCust, winRate, aov };
+    }
+
+    function renderCompareStudio() {
+      const dim = document.getElementById('compareDimension').value;
+      const valA = document.getElementById('compareItemA').value;
+      const valB = document.getElementById('compareItemB').value;
+
+      const labelA = dim === 'month' ? `Month ${valA}` : valA;
+      const labelB = dim === 'month' ? `Month ${valB}` : valB;
+      document.getElementById('thCompareA').textContent = labelA;
+      document.getElementById('thCompareB').textContent = labelB;
+
+      const mA = getCohortStats(dim, valA);
+      const mB = getCohortStats(dim, valB);
+
+      const deltaBadge = (a, b, isPts = false) => {
+        const diff = b - a;
+        if (Math.abs(diff) < 0.001) return `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">0.0%</span>`;
+        const pos = diff > 0;
+        const txt = isPts
+          ? `${pos ? '+' : ''}${diff.toFixed(1)} pts`
+          : (a > 0 ? `${pos ? '+' : ''}${(((b - a) / a) * 100).toFixed(1)}%` : (pos ? '+100%' : '0%'));
+        const cls = pos ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200';
+        return `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold border ${cls}">${txt}</span>`;
+      };
+
+      const cards = [
+        { title: 'Order Revenue (MMK)', a: formatShortMMK(mA.rev), b: formatShortMMK(mB.rev), diff: (mB.rev - mA.rev >= 0 ? '+' : '') + formatShortMMK(mB.rev - mA.rev), badge: deltaBadge(mA.rev, mB.rev) },
+        { title: 'Quoted Pipeline (MMK)', a: formatShortMMK(mA.quote), b: formatShortMMK(mB.quote), diff: (mB.quote - mA.quote >= 0 ? '+' : '') + formatShortMMK(mB.quote - mA.quote), badge: deltaBadge(mA.quote, mB.quote) },
+        { title: 'Unique Customers', a: `${mA.custCount} cust.`, b: `${mB.custCount} cust.`, diff: `${mB.custCount - mA.custCount >= 0 ? '+' : ''}${mB.custCount - mA.custCount}`, badge: deltaBadge(mA.custCount, mB.custCount) },
+        { title: 'Conversion Rate', a: `${mA.winRate.toFixed(1)}%`, b: `${mB.winRate.toFixed(1)}%`, diff: `${mB.winRate - mA.winRate >= 0 ? '+' : ''}${(mB.winRate - mA.winRate).toFixed(1)}%`, badge: deltaBadge(mA.winRate, mB.winRate, true) }
+      ];
+
+      document.getElementById('compareCardsGrid').innerHTML = cards.map(c => `
+        <div class="rounded-xl border border-slate-200 p-4 bg-white">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold uppercase text-slate-500">${c.title}</span>
+            ${c.badge}
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="p-2 rounded-lg bg-indigo-50/70">
+              <div class="text-[10px] font-bold text-indigo-700 truncate">${labelA}</div>
+              <div class="text-sm font-extrabold text-slate-900">${c.a}</div>
+            </div>
+            <div class="p-2 rounded-lg bg-emerald-50/70">
+              <div class="text-[10px] font-bold text-emerald-700 truncate">${labelB}</div>
+              <div class="text-sm font-extrabold text-slate-900">${c.b}</div>
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-2 flex justify-between">
+            <span>Variance:</span><strong class="text-slate-800">${c.diff}</strong>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('compareTableBody').innerHTML = [
+        { m: 'Order Revenue (Exact MMK)', a: formatMMK(mA.rev), b: formatMMK(mB.rev), d: (mB.rev - mA.rev >= 0 ? '+' : '') + formatMMK(mB.rev - mA.rev) },
+        { m: 'Quoted Pipeline (Exact MMK)', a: formatMMK(mA.quote), b: formatMMK(mB.quote), d: (mB.quote - mA.quote >= 0 ? '+' : '') + formatMMK(mB.quote - mA.quote) },
+        { m: 'Average Deal Size (AOV)', a: formatShortMMK(mA.aov), b: formatShortMMK(mB.aov), d: (mB.aov - mA.aov >= 0 ? '+' : '') + formatShortMMK(mB.aov - mA.aov) },
+        { m: 'Unique Customers', a: mA.custCount, b: mB.custCount, d: (mB.custCount - mA.custCount >= 0 ? '+' : '') + (mB.custCount - mA.custCount) },
+        { m: 'Raw Activity Touches', a: mA.touches, b: mB.touches, d: (mB.touches - mA.touches >= 0 ? '+' : '') + (mB.touches - mA.touches) },
+        { m: 'Win / Conversion Rate', a: mA.winRate.toFixed(1) + '%', b: mB.winRate.toFixed(1) + '%', d: (mB.winRate - mA.winRate >= 0 ? '+' : '') + (mB.winRate - mA.winRate).toFixed(1) + '%' }
+      ].map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-semibold text-slate-700">${r.m}</td>
+          <td class="py-2 px-3 text-right font-medium text-indigo-700">${r.a}</td>
+          <td class="py-2 px-3 text-right font-medium text-emerald-700">${r.b}</td>
+          <td class="py-2 px-3 text-right font-bold text-slate-900">${r.d}</td>
+        </tr>
+      `).join('');
+
+      const ctx = document.getElementById('compareBarChart').getContext('2d');
+      if (charts.compare) charts.compare.destroy();
+      charts.compare = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Order Revenue (M MMK)', 'Quoted Value (M MMK)', 'Avg Deal Size (M MMK)'],
+          datasets: [
+            { label: labelA, data: [+(mA.rev / 1e6).toFixed(2), +(mA.quote / 1e6).toFixed(2), +(mA.aov / 1e6).toFixed(2)], backgroundColor: '#4f46e5', borderRadius: 6 },
+            { label: labelB, data: [+(mB.rev / 1e6).toFixed(2), +(mB.quote / 1e6).toFixed(2), +(mB.aov / 1e6).toFixed(2)], backgroundColor: '#10b981', borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 8, font: { size: 11, weight: 'bold' } } } },
+          scales: { y: { grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+        }
+      });
+    }
+
+    // =========================================================================
+    // 11. RAW ACTIVITY LOGS TABLE, ROW INSPECTOR & CSV EXPORT
+    // =========================================================================
+    function sortRawTable(key) {
+      if (rawSort.key === key) rawSort.dir = rawSort.dir === 'asc' ? 'desc' : 'asc';
+      else {
+        rawSort.key = key;
+        rawSort.dir = (key === 'effectiveDate' || key === 'quoteAmount' || key === 'orderAmount' || key === 'year' || key === 'month') ? 'desc' : 'asc';
+      }
+      renderRawRecordsTable();
+    }
+
+    function changePageSize() {
+      pageSize = parseInt(document.getElementById('pageSizeSelect').value, 10) || 15;
+      rawPage = 1;
+      renderRawRecordsTable();
+    }
+
+    function renderRawRecordsTable() {
+      const sorted = [...filteredRawRecords].sort((a, b) => {
+        const k = rawSort.key;
+        if (k === 'effectiveDate') return rawSort.dir === 'asc' ? a.effectiveDateMs - b.effectiveDateMs : b.effectiveDateMs - a.effectiveDateMs;
+        const vA = a[k], vB = b[k];
+        if (typeof vA === 'number' && typeof vB === 'number') return rawSort.dir === 'asc' ? vA - vB : vB - vA;
+        return rawSort.dir === 'asc' ? String(vA || '').localeCompare(String(vB || '')) : String(vB || '').localeCompare(String(vA || ''));
+      });
+
+      const total = sorted.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (rawPage > totalPages) rawPage = totalPages;
+      const start = (rawPage - 1) * pageSize;
+      const pageRows = sorted.slice(start, start + pageSize);
+
+      const tbody = document.getElementById('rawRecordsTableBody');
+      if (pageRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="13" class="py-8 text-center text-slate-400">No raw activity logs match your filters.</td></tr>`;
+      } else {
+        tbody.innerHTML = pageRows.map(r => {
+          const badgeCls = STAGE_BADGE_CLASSES[r.stage] || 'bg-slate-100 text-slate-700 border-slate-200';
+          return `
+            <tr onclick="openRawRecordModal(${r._id})" class="hover:bg-indigo-50/40 cursor-pointer transition">
+              <td class="py-2.5 px-3.5 font-medium text-slate-700">${r.effectiveDate}</td>
+              <td class="py-2.5 px-2.5 font-semibold text-slate-600">${r.year}</td>
+              <td class="py-2.5 px-2.5 font-semibold text-slate-600">M${r.month}</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-900">${r.salePerson}</td>
+              <td class="py-2.5 px-3 text-slate-700">${r.productGroup}</td>
+              <td class="py-2.5 px-3.5 font-semibold text-slate-900 max-w-[210px] truncate" title="${r.customerDisplay}">${r.customerDisplay}</td>
+              <td class="py-2.5 px-2.5 text-slate-600">${r.customerType}</td>
+              <td class="py-2.5 px-3 text-slate-700">${r.region}</td>
+              <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeCls}">${r.stage}</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-700">${r.quoteAmount > 0 ? Math.round(r.quoteAmount).toLocaleString('en-US') : '—'}</td>
+              <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">${r.orderNo || '—'}</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold ${r.orderAmount > 0 ? 'text-emerald-700' : 'text-slate-400'}">${r.orderAmount > 0 ? Math.round(r.orderAmount).toLocaleString('en-US') : '—'}</td>
+              <td class="py-2.5 px-3 text-slate-600">${r.orderStatus}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('rawPaginationInfo').textContent = total === 0
+        ? 'Showing 0 entries'
+        : `Showing ${start + 1} to ${Math.min(start + pageSize, total)} of ${total} raw entries`;
+
+      document.getElementById('rawPaginationControls').innerHTML = `
+        <button onclick="rawPage = Math.max(1, rawPage - 1); renderRawRecordsTable()" ${rawPage === 1 ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 font-semibold">Prev</button>
+        <span class="px-2 font-semibold">Page ${rawPage} / ${totalPages}</span>
+        <button onclick="rawPage = Math.min(${totalPages}, rawPage + 1); renderRawRecordsTable()" ${rawPage === totalPages ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 font-semibold">Next</button>
+      `;
+    }
+
+    function openRawRecordModal(id) {
+      const r = rawRecords.find(x => x._id === id);
+      if (!r) return;
+      document.getElementById('rawModalStage').textContent = r.stage;
+      document.getElementById('rawModalCustomer').textContent = r.customerDisplay;
+      document.getElementById('rawModalBody').innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Date</span><strong>${r.effectiveDate} (Y${r.year} M${r.month})</strong></div>
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Sale Person</span><strong>${r.salePerson}</strong></div>
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Region / Product</span><strong>${r.region} • ${r.productGroup}</strong></div>
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Quote Amount</span><strong>${formatMMK(r.quoteAmount)}</strong></div>
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Confirmed Amount</span><strong>${formatMMK(r.confirmedAmount)}</strong></div>
+          <div><span class="text-[10px] font-bold uppercase text-slate-400 block">Order Amount</span><strong class="text-emerald-700">${formatMMK(r.orderAmount)}</strong></div>
+        </div>
+        <div class="p-3 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1">Key Points of Discussion</span>
+          <p class="text-slate-800">${r.discussionPoints || 'None recorded'}</p>
+        </div>
+        <div class="p-3 rounded-xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1">Key Points of Negotiation</span>
+          <p class="text-slate-800">${r.negotiationPoints || 'None recorded'}</p>
+        </div>
+      `;
+      document.getElementById('rawModalViewJourneyBtn').onclick = () => {
+        closeRawRecordModal();
+        openCustomerTimeline(r.customerKey);
+      };
+      document.getElementById('rawRecordModal').classList.remove('hidden');
+    }
+
+    function closeRawRecordModal() {
+      document.getElementById('rawRecordModal').classList.add('hidden');
+    }
+
+    function exportFilteredCSV() {
+      if (filteredRawRecords.length === 0) {
+        showToast('No records to export', 'error');
+        return;
+      }
+      const rows = filteredRawRecords.map(r => ({
+        "Timestamp": r.timestamp,
+        "Year": r.year,
+        "Month": r.month,
+        "Sale Person": r.salePerson,
+        "Sub Group [Products]": r.productGroup,
+        "Date": r.effectiveDate,
+        "Enquiry Type": r.enquiryType,
+        "Customer Name": r.customerDisplay,
+        "Customer Type": r.customerType,
+        "Region": r.region,
+        "Stage": r.stage,
+        "Quote No.": r.quoteNo,
+        "Quote Amount (MMK)": r.quoteAmount,
+        "Order No.": r.orderNo,
+        "Order Amount (MMK)": r.orderAmount,
+        "Order Status": r.orderStatus,
+        "Confirmed Amount (MMK)": r.confirmedAmount,
+        "Key Points of Discussion": r.discussionPoints,
+        "Key Points of Negotiation": r.negotiationPoints
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "YTD Sale Forecast");
+      XLSX.writeFile(wb, `UTC_YTD_Sale_Forecast_${new Date().toISOString().slice(0, 10)}.csv`);
+      showToast(`Exported ${rows.length} rows to CSV`, 'success');
+    }
+
+    // =========================================================================
+    // 12. APPS SCRIPT WEB APP JSON API & EXCEL/CSV UPLOAD (IGNORES 'Summary')
+    // =========================================================================
+    function openDataModal() { document.getElementById('dataModal').classList.remove('hidden'); }
+    function closeDataModal() { document.getElementById('dataModal').classList.add('hidden'); }
+
+    async function syncFromAppsScriptAPI(silent = false) {
+      const urlInput = document.getElementById('appsScriptUrlInput').value.trim();
+      const tokenInput = document.getElementById('appsScriptTokenInput').value.trim();
+
+      if (!urlInput) {
+        if (!silent) showToast('Please enter your Google Apps Script Web App URL', 'error');
+        return;
+      }
+
+      localStorage.setItem('utc_apps_script_url', urlInput);
+      localStorage.setItem('utc_apps_script_token', tokenInput);
+
+      const btn = document.getElementById('syncApiBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Syncing Live JSON API...`;
+
+      try {
+        const fetchUrl = new URL(urlInput);
+        if (tokenInput) fetchUrl.searchParams.set('token', tokenInput);
+
+        const resp = await fetch(fetchUrl.toString());
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const payload = await resp.json();
+
+        if (payload.status === 'unauthorized') {
+          throw new Error('Invalid API Secret Token.');
+        }
+
+        const list = Array.isArray(payload) ? payload : (payload.records || []);
+        if (!list.length) throw new Error('API returned 0 records from YTD Sale Forecast.');
+
+        rawRecords = normalizeRawRows(list);
+        document.getElementById('dataSourceBadge').innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Live Apps Script API (${rawRecords.length} Logs • YTD Sale Forecast)</span>
+        `;
+        renderMultiSelectDropdowns();
+        resetAllFilters();
+        closeDataModal();
+        showToast(`Synced ${rawRecords.length} live raw records from Apps Script API!`, 'success');
+      } catch (err) {
+        if (!silent) showToast(`API Sync Error: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>Sync Live API (YTD Sale Forecast Only)</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+
+          // Explicitly ignore any "Summary" sheet; select "YTD Sale Forecast" or first non-Summary sheet
+          const nonSummarySheets = wb.SheetNames.filter(name => name.trim().toLowerCase() !== 'summary');
+          const targetSheet = nonSummarySheets.find(name => name.toLowerCase().includes('ytd sale forecast'))
+            || nonSummarySheets.find(name => name.toLowerCase().includes('ytd'))
+            || nonSummarySheets[0];
+
+          if (!targetSheet) {
+            showToast('No valid data sheet found (Summary sheet ignored).', 'error');
+            return;
+          }
+
+          const jsonRows = XLSX.utils.sheet_to_json(wb.Sheets[targetSheet], { defval: '' });
+          if (!jsonRows.length) {
+            showToast(`Sheet "${targetSheet}" is empty.`, 'error');
+            return;
+          }
+
+          rawRecords = normalizeRawRows(jsonRows);
+          document.getElementById('dataSourceBadge').innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            <span>File: ${file.name} [${targetSheet}] (${rawRecords.length} Logs)</span>
+          `;
+          renderMultiSelectDropdowns();
+          resetAllFilters();
+          closeDataModal();
+          showToast(`Loaded ${rawRecords.length} rows from "${targetSheet}" (Summary sheet ignored)`, 'success');
+        } catch (err) {
+          showToast('Failed to parse file. Ensure valid .xlsx or .csv format.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function restoreSampleDataset() {
+      rawRecords = normalizeRawRows(generateSampleRawDataset());
+      document.getElementById('dataSourceBadge').innerHTML = `
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Sample Raw Dataset (${rawRecords.length} Logs • YTD Sale Forecast)</span>
+      `;
+      renderMultiSelectDropdowns();
+      resetAllFilters();
+      closeDataModal();
+      showToast('Restored multi-year sample raw dataset', 'info');
+    }
+
+    // =========================================================================
+    // 13. LOGO CUSTOMIZER, TABS & TOAST NOTIFICATIONS
+    // =========================================================================
+    function openLogoModal() { document.getElementById('logoModal').classList.remove('hidden'); }
+    function closeLogoModal() { document.getElementById('logoModal').classList.add('hidden'); }
+
+    function setBrandLogoSource(src) {
+      const img = document.getElementById('brandLogoImg');
+      const svg = document.getElementById('defaultLogoSvg');
+      if (!src) {
+        img.classList.add('hidden');
+        img.src = '';
+        svg.classList.remove('hidden');
+        return;
+      }
+      img.onload = () => { img.classList.remove('hidden'); svg.classList.add('hidden'); };
+      img.onerror = () => { img.classList.add('hidden'); svg.classList.remove('hidden'); };
+      img.src = src;
+    }
+
+    function handleLogoFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try { localStorage.setItem('utc_custom_logo', e.target.result); } catch (err) {}
+        setBrandLogoSource(e.target.result);
+        closeLogoModal();
+        showToast('Company logo updated!', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function applyLogoPath() {
+      const path = document.getElementById('logoPathInput').value.trim();
+      if (!path) return;
+      localStorage.setItem('utc_custom_logo', path);
+      setBrandLogoSource(path);
+      closeLogoModal();
+      showToast(`Logo path set to ${path}`, 'success');
+    }
+
+    function resetLogo() {
+      localStorage.removeItem('utc_custom_logo');
+      document.getElementById('logoPathInput').value = '';
+      setBrandLogoSource('');
+      closeLogoModal();
+      showToast('Restored default UTC logo', 'info');
+    }
+
+    function setActiveTab(tab) {
+      document.querySelectorAll('.nav-tab').forEach(b => {
+        b.className = 'nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-600 hover:bg-slate-100';
+      });
+      const active = document.getElementById(`tab-${tab}`);
+      if (active) active.className = 'nav-tab inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap bg-indigo-600 text-white shadow-2xs';
+
+      const sections = ['journey', 'charts', 'compare', 'records'];
+      sections.forEach(s => {
+        const el = document.getElementById(`section-${s}`);
+        if (!el) return;
+        if (tab === 'all' || tab === s) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      });
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-900 text-white border-emerald-700',
+        error: 'bg-rose-900 text-white border-rose-700',
+        info: 'bg-slate-900 text-white border-slate-700'
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs font-medium flex items-center justify-between gap-3 animate-fade-in ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="text-white/70 hover:text-white font-bold">×</button>`;
+      container.appendChild(toast);
+      setTimeout(() => { if (toast.parentElement) toast.remove(); }, 4200);
+    }
+
+    // =========================================================================
+    // 14. INITIALIZATION ON DOM LOAD
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      // Restore saved logo
+      const savedLogo = localStorage.getItem('utc_custom_logo');
+      if (savedLogo) {
+        setBrandLogoSource(savedLogo);
+        if (!savedLogo.startsWith('data:')) document.getElementById('logoPathInput').value = savedLogo;
+      }
+
+      // Load realistic multi-year sample dataset first so UI renders immediately
+      rawRecords = normalizeRawRows(generateSampleRawDataset());
+      renderMultiSelectDropdowns();
+      applyFilters();
+
+      // Check for configured Apps Script Web App URL (from localStorage or DEFAULT_APPS_SCRIPT_URL)
+      const savedApiUrl = localStorage.getItem('utc_apps_script_url') || DEFAULT_APPS_SCRIPT_URL;
+      const savedApiToken = localStorage.getItem('utc_apps_script_token') || DEFAULT_APPS_SCRIPT_TOKEN;
+      if (savedApiUrl) {
+        document.getElementById('appsScriptUrlInput').value = savedApiUrl;
+        document.getElementById('appsScriptTokenInput').value = savedApiToken;
+        syncFromAppsScriptAPI(true);
+      }
+    });
+  </script>
+</body>
+</html>
